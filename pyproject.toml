@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "askda-phys"
+version = "0.0.1"
+description = "Agents for knowledge Systemisation and Discovery-by-Analogy in Physics"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "networkx>=3.0",
+    "anthropic>=0.40",        # default backend for all three tiers
+    "scipy>=1.11",            # CODATA grounding + leangrad numerical fallback
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+http = ["httpx>=0.27"]          # nicer HTTP for Ollama + page reading
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+askda-phys = "askda_phys.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["askda_phys*"]
