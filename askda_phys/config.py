@@ -16,7 +16,7 @@ from pathlib import Path
 @dataclass(frozen=True)
 class ModelConfig:
     """How to reach the model that backs a tier."""
-    client: str          # registered client name, e.g. "anthropic" | "ollama" | "mock"
+    client: str          # registered client name, e.g. "anthropic" | "deepseek" | "ollama" | "mock"
     model: str           # model identifier passed to that client
     temperature: float = 0.7
     max_tokens: int = 4096
@@ -41,6 +41,12 @@ ANTHROPIC_TIERS: dict[str, ModelConfig] = {
     "GENIUS": ModelConfig("anthropic", "claude-opus-4-8",           0.8, 16384),
 }
 
+DEEPSEEK_TIERS: dict[str, ModelConfig] = {
+    "FAST":   ModelConfig("deepseek", "deepseek-v4-flash",  0.4, 4096),
+    "SMART":  ModelConfig("deepseek", "deepseek-v4-pro",  0.6, 8192),
+    "GENIUS": ModelConfig("deepseek", "deepseek-v4-pro",    0.8, 16384)
+}
+
 # Local-model preset (Ollama). Activate with models.use_ollama().
 OLLAMA_TIERS: dict[str, ModelConfig] = {
     "FAST":   ModelConfig("ollama", "llama3.2",    0.4, 4096),
@@ -49,7 +55,7 @@ OLLAMA_TIERS: dict[str, ModelConfig] = {
 }
 
 # Active tiers. Agents read this; presets above can be swapped in via models.py.
-TIERS: dict[str, ModelConfig] = dict(ANTHROPIC_TIERS)
+TIERS: dict[str, ModelConfig] = dict(DEEPSEEK_TIERS)
 
 
 # --------------------------------------------------------------------------- #

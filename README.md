@@ -15,7 +15,7 @@ are stubbed behind real interfaces (see the status table).
 
 ```bash
 pip install -e ".[http,numeric,dev]"
-export ANTHROPIC_API_KEY=sk-ant-...      # required for the default (API) backend
+export DEEPSEEK_API_KEY=sk-...      # required for the default (API) backend
 ```
 
 `networkx` and `anthropic` are the hard dependencies. `httpx` (Ollama + page
@@ -23,7 +23,15 @@ reading) and `scipy`/`numpy` (numerical fallback) are optional extras.
 
 ## Model backends
 
-All three tiers default to the **Anthropic API**:
+All three tiers default to the **Deepseek API**:
+
+| Tier | Model | Used by |
+|---|---|---|
+| FAST | `deepseek-v4-flash` | memeticist, archivist |
+| SMART | `deepseek-v4-pro` | interpreter, sceptic, advisor, supervisor, peer, critic |
+| GENIUS | `deepseek-v4-pro` | maniac, leangrad |
+
+The Anthropic API might be preferred:
 
 | Tier | Model | Used by |
 |---|---|---|
@@ -95,13 +103,13 @@ askda_phys/
 |---|---|---|
 | Agent base / spec / prompts | ✅ working | maniac, interpreter, sceptic, advisor, leangrad, peer, critic carry their real prompts |
 | memeticist / supervisor / archivist | 🟡 draft | prompts marked TBD in the plan; first-pass specs included |
-| Tiered model dispatch | ✅ working | Anthropic API (default) + Ollama + Mock; switch via `use_*()` |
+| Tiered model dispatch | ✅ working | Deepseek API (default) + Anthropic API + Ollama + Mock; switch via `use_*()` |
 | KnowledgeWeb + persistence | ✅ working | MEME/COMPLEX, PHILOSOPHY/APPLICATION, STRONG/WEAK/FAILED |
 | Seed ranking | ✅ working | implements the distance−centrality scoring from the plan |
 | Run context + logging | ✅ working | `NNN-{gitsha}` labels, per-agent prompt/response dumps |
 | Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model |
 | Initial-web page-link fetch | 🟥 stub | `knowledge/build.fetch_links` returns []; wire to reader/MediaWiki |
-| web_search tool | 🟥 stub | wire to a search API |
+| web_search tool | 🟡 minimal | basic search via duckduckgo API |
 | page reader tool | 🟡 minimal | naive HTML->text; swap in trafilatura/readability |
 | Physlib (Lean) verify | 🟡 real parser + lake call | structured errors/sorries/progress; runs `lake` when `ASKDA_PHYSLIB_PATH` is set, graceful no-op otherwise |
 | leangrad repair loop | ✅ working | linear verifier-in-the-loop: structured errors fed back, keeps best partial by `progress`, numerical fallback on exhaustion |

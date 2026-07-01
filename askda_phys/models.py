@@ -12,9 +12,9 @@ Clients that ship:
   * `MockClient`      - deterministic, offline; lets the whole pipeline run in
                         tests without any model. Install with `use_mock()`.
 
-Switch the active backend for all tiers with `use_anthropic()`, `use_ollama()`
-or `use_mock()`. To add another provider (e.g. an OpenAI-compatible endpoint),
-write a client with the same `.generate` signature and `register_client(...)`.
+Switch the active backend for all tiers with `use_anthropic()`, `use_deepseek()`,
+`use_ollama()`, or `use_mock()`. To add another provider (e.g. an OpenAI-compatible 
+endpoint), write a client with the same `.generate` signature and `register_client(...)`.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ import os
 from typing import Protocol, runtime_checkable
 
 from . import config
-from .config import ANTHROPIC_TIERS, OLLAMA_TIERS, TIERS, ModelConfig
+from .config import ANTHROPIC_TIERS, DEEPSEEK_TIERS, OLLAMA_TIERS, TIERS, ModelConfig
 
 
 @runtime_checkable
@@ -47,8 +47,9 @@ class AnthropicClient:
 
     def __init__(self, api_key: str | None = None,
                  base_url: str = "https://api.anthropic.com",
-                 version: str = "2023-06-01", timeout: float = 600.0):
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+                 version: str = "2023-06-01", timeout: float = 600.0,
+                 api_key_env: str = "ANTHROPIC_API_KEY"):  # Add this parameter
+        self.api_key = api_key or os.environ.get(api_key_env)
         self.base_url = base_url.rstrip("/")
         self.version = version
         self.timeout = timeout
@@ -120,7 +121,15 @@ class AnthropicClient:
                 url, data=json.dumps(body).encode(), headers=headers)
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
                 return json.loads(resp.read())
-
+            
+# --------------------------------------------------------------------------- #
+# Deepseek (uses anthropic SDK)
+# --------------------------------------------------------------------------- #
+class DeepSeekClient(AnthropicClient):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("base_url", "https://api.deepseek.com/anthropic")
+        kwargs.setdefault("api_key_env", "DEEPSEEK_API_KEY")
+        super().__init__(**kwargs)
 
 # --------------------------------------------------------------------------- #
 # Ollama (local)
@@ -181,6 +190,7 @@ class MockClient:
 # --------------------------------------------------------------------------- #
 _CLIENTS: dict[str, ModelClient] = {
     "anthropic": AnthropicClient(),
+    "deepseek":DeepSeekClient(),
     "ollama": OllamaClient(),
     "mock": MockClient(),
 }
@@ -196,9 +206,13 @@ def _set_tiers(preset: dict[str, ModelConfig]) -> None:
 
 
 def use_anthropic() -> None:
-    """Route every tier to the Anthropic API preset (the default)."""
+    """Route every tier to the Anthropic API preset."""
     _set_tiers(ANTHROPIC_TIERS)
 
+def use_deepseek() -> None:
+    """Route every tier to the Deepseek API preset (the default).
+    """
+    _set_tiers(DEEPSEEK_TIERS)
 
 def use_ollama() -> None:
     """Route every tier to the local Ollama preset."""
