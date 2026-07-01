@@ -44,6 +44,9 @@ provider, write a client with the same `.generate` signature and call
 ## Quickstart
 
 ```bash
+# 0. Run tests - 11 tests should pass
+python -m pytest -q
+
 # 1. build + save the initial web of knowledge (page-link fetch is stubbed)
 python -m askda_phys.cli build-web
 
@@ -99,26 +102,26 @@ askda_phys/
 | Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model |
 | Initial-web page-link fetch | 🟥 stub | `knowledge/build.fetch_links` returns []; wire to reader/MediaWiki |
 | web_search tool | 🟥 stub | wire to a search API |
-| page reader tool | 🟡 minimal | naive HTML→text; swap in trafilatura/readability |
+| page reader tool | 🟡 minimal | naive HTML->text; swap in trafilatura/readability |
 | Physlib (Lean) verify | 🟡 real parser + lake call | structured errors/sorries/progress; runs `lake` when `ASKDA_PHYSLIB_PATH` is set, graceful no-op otherwise |
 | leangrad repair loop | ✅ working | linear verifier-in-the-loop: structured errors fed back, keeps best partial by `progress`, numerical fallback on exhaustion |
 | CODATA grounding | ✅ working | advisor/supervisor emit `{{const: ...}}`, resolved via `scipy.constants`, carried to `peer`; OOM estimate as fallback |
 | pyexec (scipy) | 🟡 minimal | bare subprocess; sandbox before trusting model code |
 
-## Important caveats
+## Notes
 
-- **"phys-lean" has moved and is two things.** The library you mean — PhysLean,
-  formerly HepLean — was renamed and merged with Lean-QuantumInfo into
+- **Physlib** PhysLean,
+  formerly HepLean, was renamed and merged with Lean-QuantumInfo into
   **Physlib** at `leanprover-community/physlib`. Point your checkout there. A
   *separate* "PhysLib" (from the Lean4PHYS project, with the LeanPhysBench
   benchmark) is the more LLM-oriented one and is worth studying for the
   `leangrad`/`peer`/`critic` tooling.
 - **`leangrad` is the load-bearing risk.** Autonomous Lean formalisation of
-  research-level physics is currently weak — on *college-level* LeanPhysBench,
+  research-level physics is currently weak. On *college-level* LeanPhysBench,
   the best frontier model scored ~35% and a dedicated prover ~16%; local models
   will be worse. The pipeline therefore treats Lean verification as an optional
   layer and keeps the scipy numerical path as the primary fallback.
-- **Ollama can't browse.** It only runs models. The `tools/` layer executes
+- **Ollama**; it only runs models. The `tools/` layer executes
   search / page reading / Lean / Python in-process and feeds results back into
   the next prompt.
 
