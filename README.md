@@ -108,7 +108,7 @@ askda_phys/
 | Seed ranking | ✅ working | implements the distance−centrality scoring from the plan |
 | Run context + logging | ✅ working | `NNN-{gitsha}` labels, per-agent prompt/response dumps |
 | Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model |
-| Initial-web page-link fetch | 🟥 stub | `knowledge/build.fetch_links` returns []; wire to reader/MediaWiki |
+| Initial-web page-link fetch | 🟡 minimal | `knowledge/build.fetch_links` performs a simple scrape of webpage for links to valid wiki pages |
 | web_search tool | 🟡 minimal | basic search via duckduckgo API |
 | page reader tool | 🟡 minimal | naive HTML->text; swap in trafilatura/readability |
 | Physlib (Lean) verify | 🟡 real parser + lake call | structured errors/sorries/progress; runs `lake` when `ASKDA_PHYSLIB_PATH` is set, graceful no-op otherwise |

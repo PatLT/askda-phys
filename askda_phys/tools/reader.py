@@ -8,6 +8,7 @@ the plan asks about - the model decides to call it, the library executes it.
 from __future__ import annotations
 
 import re
+from urllib.parse import urljoin,urlparse
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
@@ -32,3 +33,50 @@ def fetch_text(url: str, timeout: float = 30.0, max_chars: int = 20000) -> str:
                   flags=re.DOTALL | re.IGNORECASE)
     text = _WS_RE.sub(" ", _TAG_RE.sub(" ", html)).strip()
     return text[:max_chars]
+
+def fetch_links(url: str, timeout: float = 30.0, max_links: int = 100) -> list[str]:
+    """Extract outbound links from a webpage.
+    
+    Fetches the URL and extracts all href attributes from <a> tags.
+    Relative URLs are resolved to absolute URLs.
+    
+    Args:
+        url: The webpage URL to fetch
+        timeout: Request timeout in seconds
+        max_links: Maximum number of links to return
+        
+    Returns:
+        List of absolute URLs found on the page
+    """
+    html = fetch_html(url, timeout=timeout)
+    
+    # Extract all href attributes from <a> tags
+    # This pattern handles common variations: href="...", href='...', href=... (no quotes)
+    href_pattern = re.compile(
+        r'<a\s[^>]*href\s*=\s*["\']?([^"\'\s>]+)["\']?[^>]*>',
+        re.IGNORECASE
+    )
+    
+    links = []
+    seen = set()  # deduplicate while preserving order
+    
+    for match in href_pattern.finditer(html):
+        raw_href = match.group(1).strip()
+        
+        # Skip empty links, javascript:, mailto:, tel:, etc.
+        if not raw_href or raw_href.startswith(('#', 'javascript:', 'mailto:', 'tel:')):
+            continue
+        
+        # Resolve relative URLs to absolute
+        absolute_url = urljoin(url, raw_href)
+        
+        # Only include http(s) URLs and deduplicate
+        parsed = urlparse(absolute_url)
+        if parsed.scheme in ('http', 'https') and absolute_url not in seen:
+            seen.add(absolute_url)
+            links.append(absolute_url)
+            
+            if len(links) >= max_links:
+                break
+    
+    return links

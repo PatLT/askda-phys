@@ -14,9 +14,11 @@ below is real and works on whatever that mapping returns.
 from __future__ import annotations
 
 from urllib.parse import unquote, urlparse
+import re
 
 from ..config import SEED_PAGES
 from .web import KnowledgeWeb
+from ..tools import reader
 
 
 def _title_from_url(url: str) -> str:
@@ -30,7 +32,23 @@ def fetch_links(url: str) -> list[str]:
     MediaWiki API call). Returning [] keeps the builder functional but produces
     only the seed nodes themselves.
     """
-    return []
+    links = reader.fetch_links(url)
+    wiki_links = []
+    for link in links:
+        parsed = urlparse(link)
+        if (parsed.netloc == "en.wikipedia.org" and 
+            parsed.path.startswith("/wiki/") and
+            not parsed.path.startswith("/wiki/Special:") and
+            not parsed.path.startswith("/wiki/Wikipedia:") and
+            not parsed.path.startswith("/wiki/Talk:") and
+            not parsed.path.startswith("/wiki/Help:") and
+            not parsed.path.startswith("/wiki/File:") and
+            not parsed.path.startswith("/wiki/Category:") and
+            not parsed.path.startswith("/wiki/Template:") and
+            not parsed.path.startswith("/wiki/Portal:") and
+            not parsed.path.startswith("/wiki/Main_Page")):
+            wiki_links.append(url)
+    return wiki_links
 
 
 def build_initial_web(pages: list[str] | None = None) -> KnowledgeWeb:
