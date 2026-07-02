@@ -46,6 +46,7 @@ SPEC = AgentSpec(
                    "CODATA via {{const: ...}} placeholders."),
     reports_score=False,
     tools=("web_search", "data"),
+    tool_loop=True,
 )
 
 agent = GroundedProposalAgent(SPEC)

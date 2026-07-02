@@ -121,8 +121,8 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
     _announce("supervisor", verbosity)
     supervisor_out = agents.supervisor.agent({
         "report": pass1.report,
-        "peer": str(pass1.peer_score),
-        "critic": str(pass1.critic_score),
+        "peer": pass1.peer_text,
+        "critic": pass1.critic_text,
     }, run=run)
     res.open_proposal = supervisor_out.text
     grounded_open = list(supervisor_out.meta.get("grounded", []))
@@ -146,6 +146,17 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
 # --------------------------------------------------------------------------- #
 # Archival (deterministic edge handling + agentic node mapping)
 # --------------------------------------------------------------------------- #
+def _field_from_proposal(problem: str) -> str:
+    """Best-effort field label from a proposal's own opening section.
+
+    advisor/supervisor are both prompted for a three-section proposal whose
+    first section is a precise description of the phenomenon/problem - so the
+    text up to the first blank line is a reasonable stand-in for "field of
+    application" without a further LLM call.
+    """
+    return problem.strip().split("\n\n", 1)[0] or problem[:300]
+
+
 def _archive(web: KnowledgeWeb, res: DiscoveryResult, run: Run,
              problem: str = "", verbosity: int = 0) -> None:
     """Insert/locate the application node and label the seed->application edge.
@@ -159,7 +170,7 @@ def _archive(web: KnowledgeWeb, res: DiscoveryResult, run: Run,
         candidates = web.application_nodes()
         arch = agents.archivist.agent({
             "seed": res.seed,
-            "field": "(TODO: extract field from proposal)",
+            "field": _field_from_proposal(problem),
             "problem": problem,
             "candidates": ", ".join(candidates) or "(none)",
         }, run=run)

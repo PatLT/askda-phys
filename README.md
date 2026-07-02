@@ -107,14 +107,15 @@ askda_phys/
 | KnowledgeWeb + persistence | ✅ working | MEME/COMPLEX, 7-role vocabulary (`agents.memeticist.ALL_ROLES`), STRONG/WEAK/FAILED |
 | Seed ranking | ✅ working | implements the distance−centrality scoring from the plan |
 | Run context + logging | ✅ working | `NNN-{gitsha}` labels, per-agent prompt/response dumps |
-| Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model |
+| Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model; supervisor/archivist now get the actual peer/critic review text and a real field label instead of placeholders |
+| Agent tool-call loop | ✅ working | `agents/tooling.py`: a `TOOL: <name>\n<arg>` wire protocol, opt-in via `AgentSpec.tool_loop`; wired into memeticist's expand step, advisor, supervisor, peer, and critic (bounded to `MAX_TOOL_TURNS`); `leangrad` keeps its own deterministic verifier-in-the-loop instead |
 | Initial-web page-link fetch | 🟡 minimal | `knowledge/build.fetch_links` performs a simple scrape of webpage for links to valid wiki pages |
-| web_search tool | 🟡 minimal | basic search via duckduckgo API |
-| page reader tool | 🟡 minimal | naive HTML->text; swap in trafilatura/readability |
-| Physlib (Lean) verify | 🟡 real parser + lake call | structured errors/sorries/progress; runs `lake` when `ASKDA_PHYSLIB_PATH` is set, graceful no-op otherwise |
-| leangrad repair loop | ✅ working | linear verifier-in-the-loop: structured errors fed back, keeps best partial by `progress`, numerical fallback on exhaustion |
+| web_search tool | 🟡 minimal | basic search via duckduckgo API; now actually callable by advisor/supervisor/memeticist-expand via the tool-call loop |
+| page reader tool | 🟡 minimal | naive HTML->text; swap in trafilatura/readability; now actually callable by memeticist-expand |
+| Physlib (Lean) verify | 🟡 real parser + lake call | structured errors/sorries/progress; runs `lake` when `ASKDA_PHYSLIB_PATH` is set, graceful no-op otherwise; now also callable live by peer/critic (in addition to leangrad's own verifier loop) |
+| leangrad repair loop | ✅ working | linear verifier-in-the-loop: structured errors fed back, keeps best partial by `progress`, numerical fallback on exhaustion; its verdict is now also summarised into peer/critic's own context |
 | CODATA grounding | ✅ working | advisor/supervisor emit `{{const: ...}}`, resolved via `scipy.constants`, carried to `peer`; OOM estimate as fallback |
-| pyexec (scipy) | 🟡 minimal | bare subprocess; sandbox before trusting model code |
+| pyexec (scipy) | 🟡 minimal | bare subprocess; sandbox before trusting model code; now also callable live via the tool-call loop |
 
 ## Notes
 

@@ -105,6 +105,7 @@ EXPAND_SPEC = AgentSpec(
     tool_guidance="May read the source page or run a web search to decompose COMPLEX nodes.",
     reports_score=False,
     tools=("reader", "web_search"),
+    tool_loop=True,
 )
 
 classify_agent = Agent(CLASSIFY_SPEC)

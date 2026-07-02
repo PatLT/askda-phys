@@ -27,10 +27,14 @@ SPEC = AgentSpec(
         "exactly as `SCORE=value`, where value is 1 (not novel, maps directly onto "
         "known solutions) to 5 (extremely novel, new solution to an open problem)."
     ),
-    context_template="Submitted report:\n{report}",
+    context_template=(
+        "Submitted report:\n{report}\n\n"
+        "The author's own Physlib verification attempt:\n{lean_verification}"
+    ),
     tool_guidance="Physlib may be used to check whether the model reduces to known solutions.",
     reports_score=True,
     tools=("physlib",),
+    tool_loop=True,
 )
 
 agent = Agent(SPEC)

@@ -30,11 +30,14 @@ SPEC = AgentSpec(
     context_template=(
         "Submitted report:\n{report}\n\n"
         "Grounded reference values (CODATA; judge quantitative accuracy against "
-        "these, not from memory):\n{references}"
+        "these, not from memory):\n{references}\n\n"
+        "The author's own Physlib verification attempt (you may independently "
+        "re-check specific claims yourself via the physlib tool):\n{lean_verification}"
     ),
     tool_guidance="Physlib may be used to check mathematical correctness.",
     reports_score=True,
     tools=("physlib",),
+    tool_loop=True,
 )
 
 agent = Agent(SPEC)
