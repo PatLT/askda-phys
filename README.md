@@ -55,7 +55,7 @@ provider, write a client with the same `.generate` signature and call
 # 0. Run tests - 11 tests should pass
 python -m pytest -q
 
-# 1. build + save the initial web of knowledge (page-link fetch is stubbed)
+# 1. build + save the initial web of knowledge
 python -m askda_phys.cli build-web
 
 # 2. (after a memeticist pass labels nodes) rank unused memetic seeds

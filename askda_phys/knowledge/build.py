@@ -14,7 +14,6 @@ below is real and works on whatever that mapping returns.
 from __future__ import annotations
 
 from urllib.parse import unquote, urlparse
-import re
 
 from ..config import SEED_PAGES
 from .web import KnowledgeWeb
@@ -26,13 +25,12 @@ def _title_from_url(url: str) -> str:
 
 
 def fetch_links(url: str) -> list[str]:
-    """STUB: return the concept titles a seed page links to.
+    """Return the concept titles a seed page links to.
 
-    Replace with a real implementation (tools/reader.py + link extraction, or a
-    MediaWiki API call). Returning [] keeps the builder functional but produces
-    only the seed nodes themselves.
+    Currently scrapes wiki page for appropriate links. 
+    Might want to upgrade this to a MediaWiki API call. 
     """
-    links = reader.fetch_links(url)
+    links = reader.fetch_urls(url,max_links=3000)
     wiki_links = []
     for link in links:
         parsed = urlparse(link)
@@ -47,19 +45,29 @@ def fetch_links(url: str) -> list[str]:
             not parsed.path.startswith("/wiki/Template:") and
             not parsed.path.startswith("/wiki/Portal:") and
             not parsed.path.startswith("/wiki/Main_Page")):
-            wiki_links.append(url)
+            wiki_links.append(link)
     return wiki_links
 
 
-def build_initial_web(pages: list[str] | None = None) -> KnowledgeWeb:
+def build_initial_web(pages: list[str] | None = None, max_depth:int = 2, debug:bool=False) -> KnowledgeWeb:
     pages = pages or SEED_PAGES
     web = KnowledgeWeb()
-    for url in pages:
-        title = _title_from_url(url)
-        if title not in web.g:
-            web.add_node(title, kind="COMPLEX", description="", source_url=url)
-        for linked in fetch_links(url):
-            if linked not in web.g:
-                web.add_node(linked, kind="COMPLEX", description="")
-            web.add_edge(title, linked, strength="STRONG")
+    def _recurse(links: list[str], parent: None | str, depth: int):
+        if depth == max_depth:
+            return
+        if debug: print(f'DEPTH = {depth}, {len(links)} links')
+        for link in links:
+            title = _title_from_url(link)
+            if debug: print(f'\t{parent} -> {title} | {link}')
+            if title not in web.g:
+                web.add_node(title, kind="COMPLEX", description="", source_url=link)
+                if parent is not None and parent!=title:
+                    web.add_edge(parent,title,strength="STRONG")
+                if depth+1<max_depth:
+                    # Fetching links takes time so only do it if it's needed at the next step. 
+                    new_links = fetch_links(link)
+                else:
+                    new_links = []
+                _recurse(new_links,title,depth+1)
+    _recurse(pages,None,0)
     return web

@@ -8,21 +8,52 @@ the plan asks about - the model decides to call it, the library executes it.
 from __future__ import annotations
 
 import re
+import time
 from urllib.parse import urljoin,urlparse
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 
+HEADERS = {
+    "User-Agent": "ASKDA-phys/1.0 (https://github.com/PatLT/askda-phys)"
+}
+
+class RateLimiter:
+    """Simple per-domain rate limiter."""
+    
+    def __init__(self, default_delay: float = 2.0):
+        self.default_delay = default_delay
+        self._last_request: dict[str, float] = {}
+    
+    def wait(self, url: str, delay: float | None = None):
+        """Wait appropriate time since last request to this domain."""
+        domain = urlparse(url).netloc
+        now = time.time()
+        
+        if delay is None:
+            delay = self.default_delay
+        
+        if domain in self._last_request:
+            elapsed = now - self._last_request[domain]
+            if elapsed < delay:
+                time.sleep(delay - elapsed)
+        
+        self._last_request[domain] = time.time()
+
+# Usage:
+_limiter = RateLimiter(default_delay=2.0)  # 2 seconds between requests
 
 def fetch_html(url: str, timeout: float = 30.0) -> str:
+    _limiter.wait(url)
     try:
-        import httpx  # type: ignore
-        r = httpx.get(url, timeout=timeout, follow_redirects=True)
+        import httpx # type: ignore
+        r = httpx.get(url, timeout=timeout, follow_redirects=True, headers=HEADERS)
         r.raise_for_status()
         return r.text
     except ImportError:
         import urllib.request
-        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
+        req = urllib.request.Request(url, headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             return resp.read().decode("utf-8", errors="replace")
 
 
@@ -34,7 +65,7 @@ def fetch_text(url: str, timeout: float = 30.0, max_chars: int = 20000) -> str:
     text = _WS_RE.sub(" ", _TAG_RE.sub(" ", html)).strip()
     return text[:max_chars]
 
-def fetch_links(url: str, timeout: float = 30.0, max_links: int = 100) -> list[str]:
+def fetch_urls(url: str, timeout: float = 30.0, max_links: int = 100) -> list[str]:
     """Extract outbound links from a webpage.
     
     Fetches the URL and extracts all href attributes from <a> tags.
