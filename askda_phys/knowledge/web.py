@@ -5,7 +5,9 @@ A directed graph of concepts in physics, philosophy and related fields.
 Node attributes
 ---------------
 kind        : "MEME" | "COMPLEX"        (set by memeticist; COMPLEX until split)
-role        : "PHILOSOPHY" | "APPLICATION" | None
+role        : "CONCEPT" | "PHENOMENON" | "OTHER" | None   (CONCEPT = seed for
+              `maniac`; PHENOMENON = application target; OTHER = proper noun /
+              neither; None = not yet classified by memeticist)
 description : short text (the seed prompt for `maniac`, for MEME nodes)
 seeded_runs : list[str]                  run labels that have used this as a seed
 
@@ -21,7 +23,7 @@ from pathlib import Path
 import networkx as nx
 
 NodeKind = str       # "MEME" | "COMPLEX"
-NodeRole = str       # "PHILOSOPHY" | "APPLICATION"
+NodeRole = str       # "CONCEPT" | "PHENOMENON" | "OTHER"
 EdgeStrength = str   # "STRONG" | "WEAK" | "FAILED"
 
 
@@ -61,13 +63,13 @@ class KnowledgeWeb:
 
     def application_nodes(self) -> list[str]:
         return [n for n, d in self.g.nodes(data=True)
-                if d.get("role") == "APPLICATION"]
+                if d.get("role") == "PHENOMENON"]
 
     def unused_seed_nodes(self) -> list[str]:
         return [
             n for n, d in self.g.nodes(data=True)
             if d.get("kind") == "MEME"
-            and d.get("role") == "PHILOSOPHY"
+            and d.get("role") == "CONCEPT"
             and not d.get("seeded_runs")
         ]
 

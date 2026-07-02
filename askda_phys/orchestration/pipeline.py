@@ -168,14 +168,14 @@ def _resolve_archivist(text: str, web: KnowledgeWeb, problem: str) -> str:
     if isinstance(data.get("new_node"), dict) and data["new_node"].get("title"):
         node = data["new_node"]
         if node["title"] not in web.g:
-            web.add_node(node["title"], kind="MEME", role="APPLICATION",
+            web.add_node(node["title"], kind="MEME", role="PHENOMENON",
                          description=node.get("description", ""))
         return node["title"]
 
     # fallback: deterministic slug
     slug = "app:" + re.sub(r"\s+", "-", problem.strip().lower())[:48]
     if slug not in web.g:
-        web.add_node(slug, kind="MEME", role="APPLICATION", description=problem[:200])
+        web.add_node(slug, kind="MEME", role="PHENOMENON", description=problem[:200])
     return slug
 
 

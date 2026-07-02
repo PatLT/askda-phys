@@ -1,6 +1,7 @@
 """Command-line entry point.
 
     python -m askda_phys.cli build-web        # construct + save the initial web
+    python -m askda_phys.cli label-web        # run the memeticist pass over the web
     python -m askda_phys.cli rank             # list ranked unused seed nodes
     python -m askda_phys.cli run [--seed ID]  # run one discovery pass
     python -m askda_phys.cli run --mock       # run offline with the mock model
@@ -11,7 +12,7 @@ import argparse
 
 from . import models
 from .config import WEB_PATH
-from .knowledge import KnowledgeWeb, build_initial_web, rank_seeds
+from .knowledge import KnowledgeWeb, build_initial_web, rank_seeds, trawl_web
 from .knowledge.ranking import best_seed
 from .orchestration import discover
 
@@ -28,12 +29,19 @@ def cmd_build_web(args) -> None:
     print(f"Built web with {len(web)} nodes -> {WEB_PATH}")
 
 
+def cmd_label_web(args) -> None:
+    web = _load_web()
+    n = trawl_web(web, debug=args.debug)
+    web.save(WEB_PATH)
+    print(f"memeticist visited {n} node(s) -> {WEB_PATH}")
+
+
 def cmd_rank(args) -> None:
     web = _load_web()
     ranked = rank_seeds(web)
     if not ranked:
-        print("No rankable seed nodes (need MEME+PHILOSOPHY nodes reachable to "
-              "an APPLICATION node). Run the memeticist pass first.")
+        print("No rankable seed nodes (need MEME+CONCEPT nodes reachable to "
+              "a PHENOMENON node). Run the memeticist pass first.")
         return
     for s in ranked[: args.top]:
         print(f"{s.score:+.3f}  {s.node}  "
@@ -59,6 +67,10 @@ def main(argv=None) -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("build-web").set_defaults(func=cmd_build_web)
+
+    lw = sub.add_parser("label-web")
+    lw.add_argument("--debug", action="store_true", help="print each memeticist decision")
+    lw.set_defaults(func=cmd_label_web)
 
     pr = sub.add_parser("rank")
     pr.add_argument("--top", type=int, default=10)

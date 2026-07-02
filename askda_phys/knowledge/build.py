@@ -5,7 +5,7 @@ Pipeline:
      (a `librarian` step that maps Wikipedia / SEP pages onto common nodes).
   2. Assemble a directed graph: page -> linked-concept, all edges STRONG.
   3. (Elsewhere) traverse once with the `memeticist` agent to set MEME/COMPLEX
-     and PHILOSOPHY/APPLICATION labels and split COMPLEX nodes.
+     and CONCEPT/PHENOMENON labels and split COMPLEX nodes.
 
 STATUS: `fetch_links` is STUBBED. Wire it to tools/reader.py (or a Wikipedia/SEP
 API) to return {page_title: [linked_concept_title, ...]}. The graph assembly

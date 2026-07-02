@@ -24,9 +24,9 @@ def test_gate():
 
 def _tiny_web() -> KnowledgeWeb:
     web = KnowledgeWeb()
-    web.add_node("Impermanence", kind="MEME", role="PHILOSOPHY",
+    web.add_node("Impermanence", kind="MEME", role="CONCEPT",
                  description="Nothing persists; all is process.")
-    web.add_node("Thermalisation", kind="MEME", role="APPLICATION",
+    web.add_node("Thermalisation", kind="MEME", role="PHENOMENON",
                  description="Approach to equilibrium.")
     web.add_edge("Impermanence", "Thermalisation", strength="STRONG")
     return web
