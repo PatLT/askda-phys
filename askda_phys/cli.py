@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 
 from . import models
+from .agents.memeticist import ALL_ROLES, EXPANDABLE_ROLES
 from .config import WEB_PATH
 from .knowledge import KnowledgeWeb, build_initial_web, rank_seeds, trawl_web
 from .knowledge.ranking import best_seed
@@ -28,6 +29,17 @@ def _verbosity(args) -> int:
     return 1
 
 
+def _role_set(value: str) -> frozenset[str]:
+    """argparse type for --expandable: a comma-separated list of role names."""
+    roles = frozenset(r.strip().upper() for r in value.split(",") if r.strip())
+    invalid = roles - ALL_ROLES
+    if invalid:
+        raise argparse.ArgumentTypeError(
+            f"unknown role(s): {', '.join(sorted(invalid))}; valid roles: "
+            f"{', '.join(sorted(ALL_ROLES))}")
+    return roles
+
+
 def _common_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     group = common.add_mutually_exclusive_group()
@@ -35,6 +47,8 @@ def _common_parser() -> argparse.ArgumentParser:
                        help="suppress non-essential output")
     group.add_argument("--debug", action="store_true",
                        help="verbose per-step output")
+    common.add_argument("--mock", action="store_true",
+                        help="use the offline mock model instead of a real backend")
     return common
 
 
@@ -46,6 +60,8 @@ def _load_web() -> KnowledgeWeb:
 
 def cmd_build_web(args) -> None:
     verbosity = _verbosity(args)
+    if args.mock:
+        models.use_mock()
     web = build_initial_web(verbosity=verbosity)
     web.save(WEB_PATH)
     if verbosity >= 1:
@@ -54,8 +70,11 @@ def cmd_build_web(args) -> None:
 
 def cmd_label_web(args) -> None:
     verbosity = _verbosity(args)
+    if args.mock:
+        models.use_mock()
     web = _load_web()
-    n = trawl_web(web, verbosity=verbosity, checkpoint=lambda: web.save(WEB_PATH))
+    n = trawl_web(web, verbosity=verbosity, checkpoint=lambda: web.save(WEB_PATH),
+                 expandable_roles=args.expandable)
     if verbosity >= 1:
         print(f"memeticist visited {n} node(s) -> {WEB_PATH}")
 
@@ -99,7 +118,13 @@ def main(argv=None) -> None:
 
     sub.add_parser("build-web", parents=[common]).set_defaults(func=cmd_build_web)
 
-    sub.add_parser("label-web", parents=[common]).set_defaults(func=cmd_label_web)
+    lw = sub.add_parser("label-web", parents=[common])
+    lw.add_argument(
+        "--expandable", type=_role_set, default=None, metavar="ROLE[,ROLE...]",
+        help="comma-separated roles eligible for the expand pass "
+             f"(default: {','.join(sorted(EXPANDABLE_ROLES))}); pass an empty "
+             "string to classify only")
+    lw.set_defaults(func=cmd_label_web)
 
     pr = sub.add_parser("rank", parents=[common])
     pr.add_argument("--top", type=int, default=10)
@@ -107,7 +132,6 @@ def main(argv=None) -> None:
 
     rn = sub.add_parser("run", parents=[common])
     rn.add_argument("--seed", default=None)
-    rn.add_argument("--mock", action="store_true", help="use offline mock model")
     rn.set_defaults(func=cmd_run)
 
     args = p.parse_args(argv)
