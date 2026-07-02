@@ -1,9 +1,9 @@
 """supervisor (SMART) - Supervisor-2; proposes an OPEN problem the analogy maps onto.
 
-STATUS: DRAFT. The plan marks this agent's prompt as TBD and notes it does the
-same job as `advisor`, except it (a) ingests the leangrad report plus the peer
-and critic reviews, and (b) only proposes open problems (including un-modelled
-or crudely-modelled phenomena). Spec below adapts `advisor` accordingly.
+Per the plan, this does the same job as `advisor` except it (a) ingests the
+leangrad report plus the peer and critic reviews instead of the raw analogy,
+and (b) only proposes open problems (including un-modelled or crudely-modelled
+phenomena) rather than closed ones. Spec below adapts `advisor` accordingly.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ SPEC = AgentSpec(
         "framework onto a genuinely open problem."
     ),
     objective=(
-        "[DRAFT] Take the student's report and the peer/critic reviews and propose "
+        "Take the student's report and the peer/critic reviews and propose "
         "four OPEN problems/phenomena (including un-modelled or only crudely-"
         "modelled phenomena) to which the same conceptual framework could apply. "
         "Each must be tractable to mathematical modelling. From the four, return "
