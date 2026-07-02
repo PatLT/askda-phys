@@ -102,9 +102,9 @@ askda_phys/
 | Component | State | Notes |
 |---|---|---|
 | Agent base / spec / prompts | ✅ working | all agents (maniac, interpreter, sceptic, advisor, supervisor, memeticist, archivist, leangrad, peer, critic) carry their real prompts |
-| Web-of-knowledge traversal (memeticist pass) | ✅ working | `knowledge.trawl_web` runs memeticist over COMPLEX nodes, splits into MEME children, labels CONCEPT/PHENOMENON/OTHER; wired to `cli.py label-web` |
+| Web-of-knowledge traversal (memeticist pass) | ✅ working | `knowledge.trawl_web` runs a cheap classify call over every unlabelled node (7 roles: PHILOSOPHY_CONCEPT/PHILOSOPHY_SCHOOL/PHILOSOPHER/SCIENCE_CONCEPT/SCIENTIST/PHENOMENON/OTHER), then the heavier expand+split call only over COMPLEX nodes whose role can source a seed (PHILOSOPHY_CONCEPT/PHILOSOPHY_SCHOOL/PHILOSOPHER); wired to `cli.py label-web` |
 | Tiered model dispatch | ✅ working | Deepseek API (default) + Anthropic API + Ollama + Mock; switch via `use_*()` |
-| KnowledgeWeb + persistence | ✅ working | MEME/COMPLEX, CONCEPT/PHENOMENON/OTHER, STRONG/WEAK/FAILED |
+| KnowledgeWeb + persistence | ✅ working | MEME/COMPLEX, 7-role vocabulary (`agents.memeticist.ALL_ROLES`), STRONG/WEAK/FAILED |
 | Seed ranking | ✅ working | implements the distance−centrality scoring from the plan |
 | Run context + logging | ✅ working | `NNN-{gitsha}` labels, per-agent prompt/response dumps |
 | Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model |

@@ -67,8 +67,10 @@ class AnthropicClient:
     def _via_sdk(self, model, prompt, system, temperature, max_tokens) -> str:
         import anthropic  # raises ImportError if SDK absent -> HTTP fallback
         if self._sdk is None:
-            self._sdk = (anthropic.Anthropic(api_key=self.api_key)
-                         if self.api_key else anthropic.Anthropic())
+            kwargs = {"base_url": self.base_url}
+            if self.api_key:
+                kwargs["api_key"] = self.api_key
+            self._sdk = anthropic.Anthropic(**kwargs)
         kwargs = dict(model=model, max_tokens=max_tokens,
                       temperature=temperature,
                       messages=[{"role": "user", "content": prompt}])

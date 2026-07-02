@@ -5,9 +5,13 @@ A directed graph of concepts in physics, philosophy and related fields.
 Node attributes
 ---------------
 kind        : "MEME" | "COMPLEX"        (set by memeticist; COMPLEX until split)
-role        : "CONCEPT" | "PHENOMENON" | "OTHER" | None   (CONCEPT = seed for
-              `maniac`; PHENOMENON = application target; OTHER = proper noun /
-              neither; None = not yet classified by memeticist)
+role        : see `agents.memeticist.ALL_ROLES` for the full set and their
+              meaning, or None if not yet classified. Only PHILOSOPHY_CONCEPT
+              is usable as a seed for `maniac`; PHILOSOPHY_SCHOOL and
+              PHILOSOPHER are not seeds themselves but are decomposed
+              (`agents.memeticist.EXPANDABLE_ROLES`) into concepts that are.
+              PHENOMENON marks an application target; SCIENCE_CONCEPT,
+              SCIENTIST, and OTHER are terminal - never expanded, never seeds.
 description : short text (the seed prompt for `maniac`, for MEME nodes)
 seeded_runs : list[str]                  run labels that have used this as a seed
 
@@ -23,7 +27,7 @@ from pathlib import Path
 import networkx as nx
 
 NodeKind = str       # "MEME" | "COMPLEX"
-NodeRole = str       # "CONCEPT" | "PHENOMENON" | "OTHER"
+NodeRole = str       # see agents.memeticist.ALL_ROLES
 EdgeStrength = str   # "STRONG" | "WEAK" | "FAILED"
 
 
@@ -69,7 +73,7 @@ class KnowledgeWeb:
         return [
             n for n, d in self.g.nodes(data=True)
             if d.get("kind") == "MEME"
-            and d.get("role") == "CONCEPT"
+            and d.get("role") == "PHILOSOPHY_CONCEPT"
             and not d.get("seeded_runs")
         ]
 

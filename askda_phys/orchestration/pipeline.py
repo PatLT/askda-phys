@@ -59,8 +59,14 @@ def classify_strength(idea_passed: bool, pub1_passed: bool | None,
     return "STRONG"  # closed-problem formalisation succeeded
 
 
+def _announce(name: str, verbosity: int) -> None:
+    if verbosity >= 1:
+        print(f"-> {name}")
+
+
 def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
-             idea_threshold: float = IDEA_GATE_THRESHOLD) -> DiscoveryResult:
+             idea_threshold: float = IDEA_GATE_THRESHOLD,
+             verbosity: int = 0) -> DiscoveryResult:
     run = run or Run(seed_node=seed_node)
     res = DiscoveryResult(seed=seed_node)
     web.mark_seeded(seed_node, run.label)
@@ -69,12 +75,15 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
     description = web.description(seed_node)
 
     # 1. maniac
+    _announce("maniac", verbosity)
     analogy = agents.maniac.agent(
         {"title": title, "description": description}, run=run)
     res.analogy = analogy.text
 
     # 2. interpreter + sceptic
+    _announce("interpreter", verbosity)
     interp = agents.interpreter.agent({"maniac": analogy.text}, run=run)
+    _announce("sceptic", verbosity)
     skep = agents.sceptic.agent({"maniac": analogy.text}, run=run)
     res.novelty, res.credibility = interp.score, skep.score
 
@@ -82,10 +91,11 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
     res.idea_passed = gate([interp.score, skep.score], idea_threshold)
     if not res.idea_passed:
         res.notes.append("Idea gate failed.")
-        _archive(web, res, run)
+        _archive(web, res, run, verbosity=verbosity)
         return _finish(res, run)
 
     # 3. advisor -> closed problem
+    _announce("advisor", verbosity)
     advisor_out = agents.advisor.agent({
         "maniac": analogy.text,
         "interpreter": interp.text,
@@ -96,6 +106,7 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
     res.grounded_constants = [p.name for p in grounded]
 
     # 4. pubteam pass 1 (closed) - reviewers see the grounded reference values
+    _announce("pubteam pass 1 (leangrad, peer, critic)", verbosity)
     pass1 = agents.pubteam.run_pubteam(
         advisor_out.text, run=run, iteration=0,
         references=data_tool.format_references(grounded))
@@ -103,10 +114,11 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
     if not pass1.passed:
         res.notes.append("Pubteam pass 1 (closed problem) failed.")
         res.strength = classify_strength(True, False, None)
-        _archive(web, res, run, problem=advisor_out.text)
+        _archive(web, res, run, problem=advisor_out.text, verbosity=verbosity)
         return _finish(res, run)
 
     # 5. supervisor -> open problem (only reached when iter == 0)
+    _announce("supervisor", verbosity)
     supervisor_out = agents.supervisor.agent({
         "report": pass1.report,
         "peer": str(pass1.peer_score),
@@ -117,6 +129,7 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
     res.grounded_constants += [p.name for p in grounded_open]
 
     # 6. pubteam pass 2 (open)
+    _announce("pubteam pass 2 (leangrad, peer, critic)", verbosity)
     pass2 = agents.pubteam.run_pubteam(
         supervisor_out.text, run=run, iteration=1,
         references=data_tool.format_references(grounded_open))
@@ -125,7 +138,8 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
         res.notes.append("Pubteam pass 2 (open problem) failed; closed result stands.")
 
     res.strength = classify_strength(True, True, pass2.passed)
-    _archive(web, res, run, problem=supervisor_out.text or advisor_out.text)
+    _archive(web, res, run, problem=supervisor_out.text or advisor_out.text,
+            verbosity=verbosity)
     return _finish(res, run)
 
 
@@ -133,7 +147,7 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
 # Archival (deterministic edge handling + agentic node mapping)
 # --------------------------------------------------------------------------- #
 def _archive(web: KnowledgeWeb, res: DiscoveryResult, run: Run,
-             problem: str = "") -> None:
+             problem: str = "", verbosity: int = 0) -> None:
     """Insert/locate the application node and label the seed->application edge.
 
     Per the plan, only node-mapping is agentic; edge creation and the
@@ -141,6 +155,7 @@ def _archive(web: KnowledgeWeb, res: DiscoveryResult, run: Run,
     """
     app_node: str | None = None
     if problem:
+        _announce("archivist", verbosity)
         candidates = web.application_nodes()
         arch = agents.archivist.agent({
             "seed": res.seed,
