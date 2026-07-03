@@ -1,11 +1,17 @@
 """Web search tool (used by advisor / supervisor / memeticist).
 
-Uses DuckDuckGo search via the duckduckgo_search package.
+Uses DuckDuckGo search via the `ddgs` package (the `duckduckgo_search` package
+it was renamed from still works but prints a deprecation warning on every
+call; prefer `ddgs` if both happen to be installed).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from duckduckgo_search import DDGS
+
+try:
+    from ddgs import DDGS
+except ImportError:
+    from duckduckgo_search import DDGS  # deprecated name; `pip install ddgs`
 
 
 @dataclass

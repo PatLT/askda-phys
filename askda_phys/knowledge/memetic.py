@@ -105,8 +105,12 @@ def _parse_expand(text: str) -> dict:
     return {"kind": kind, "children": children}
 
 
-def _apply_expand(web: KnowledgeWeb, node: str, parsed: dict) -> None:
+def _apply_expand(web: KnowledgeWeb, node: str, parsed: dict) -> list[str]:
+    """Apply expand's parsed result to `web`; returns the resolved child node
+    ids (post-dedup, so a child that matched an existing node reports that
+    node's id, not its own proposed title)."""
     web.set_kind(node, parsed["kind"])
+    child_ids: list[str] = []
     for child in parsed["children"]:
         if not isinstance(child, dict):
             continue
@@ -124,6 +128,8 @@ def _apply_expand(web: KnowledgeWeb, node: str, parsed: dict) -> None:
             web.set_role(existing, role)
         if existing != node:
             web.add_edge(node, existing, strength="STRONG")
+        child_ids.append(existing)
+    return child_ids
 
 
 def _classify_pass(web: KnowledgeWeb, run: "Run | None", targets: list[str],
@@ -158,10 +164,11 @@ def _expand_pass(web: KnowledgeWeb, run: "Run | None", targets: list[str],
         result = agents.memeticist.expand_agent(
             {"title": node, "description": web.description(node)}, run=run)
         parsed = _parse_expand(result.text)
+        child_ids = _apply_expand(web, node, parsed)
         if verbosity >= 2:
+            ids = f" -> {', '.join(child_ids)}" if child_ids else ""
             tqdm.write(f"{node}: kind={parsed['kind']} "
-                      f"children={len(parsed['children'])}")
-        _apply_expand(web, node, parsed)
+                      f"children={len(child_ids)}{ids}")
         if checkpoint is not None:
             checkpoint()
 

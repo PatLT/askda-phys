@@ -13,7 +13,7 @@ dependencies = [
     "anthropic>=0.40",        # default backend for all three tiers
     "scipy>=1.11",            # CODATA grounding + leangrad numerical fallback
     "numpy>=1.24",
-    "duckduckgo-search>=8.1.0", # Used by web search tool
+    "ddgs>=9.0.0",              # Used by web search tool (renamed from duckduckgo-search)
     "tqdm>=4.66",               # CLI progress bars
 ]
 
