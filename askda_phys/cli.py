@@ -2,6 +2,7 @@
 
     python -m askda_phys.cli build-web        # construct + save the initial web
     python -m askda_phys.cli label-web        # run the memeticist pass over the web
+    python -m askda_phys.cli link-semantic    # add lexical SEMANTIC edges
     python -m askda_phys.cli rank             # list ranked unused seed nodes
     python -m askda_phys.cli run [--seed ID]  # run one discovery pass
     python -m askda_phys.cli run --mock       # run offline with the mock model
@@ -16,7 +17,7 @@ import argparse
 from . import models
 from .agents.memeticist import ALL_ROLES, EXPANDABLE_ROLES
 from .config import WEB_PATH
-from .knowledge import KnowledgeWeb, build_initial_web, rank_seeds, trawl_web
+from .knowledge import KnowledgeWeb, add_semantic_links, build_initial_web, rank_seeds, trawl_web
 from .knowledge.ranking import best_seed
 from .orchestration import discover
 
@@ -79,6 +80,18 @@ def cmd_label_web(args) -> None:
         print(f"memeticist visited {n} node(s) -> {WEB_PATH}")
 
 
+def cmd_link_semantic(args) -> None:
+    verbosity = _verbosity(args)
+    web = _load_web()
+    removed = web.remove_edges_by_strength({"SEMANTIC"}) if args.clear else 0
+    n = add_semantic_links(web, max_doc_freq=args.max_doc_freq, debug=verbosity >= 2)
+    web.save(WEB_PATH)
+    if verbosity >= 1:
+        if args.clear:
+            print(f"removed {removed} SEMANTIC edge(s)")
+        print(f"added {n} SEMANTIC edge(s) -> {WEB_PATH}")
+
+
 def cmd_rank(args) -> None:
     verbosity = _verbosity(args)
     web = _load_web()
@@ -91,7 +104,8 @@ def cmd_rank(args) -> None:
     if verbosity >= 1:
         for s in ranked[: args.top]:
             print(f"{s.score:+.3f}  {s.node}  "
-                  f"(->{s.nearest_application} d={s.distance} c={s.nearest_centrality:.3f})")
+                  f"(->{s.nearest_phenomenon} d={s.distance} c_phen={s.phenomenon_centrality:.3f} "
+                  f"~sci={s.nearest_science} c_sci={s.science_centrality:.3f})")
 
 
 def cmd_run(args) -> None:
@@ -125,6 +139,18 @@ def main(argv=None) -> None:
              f"(default: {','.join(sorted(EXPANDABLE_ROLES))}); pass an empty "
              "string to classify only")
     lw.set_defaults(func=cmd_label_web)
+
+    ls = sub.add_parser("link-semantic", parents=[common])
+    ls.add_argument("--max-doc-freq", type=int, default=3,
+                    help="only link on a shared word if it appears in at most "
+                         "this many node ids (default: 3) - keeps generic "
+                         "vocabulary from swamping the graph")
+    ls.add_argument("--clear", action="store_true",
+                    help="remove all existing SEMANTIC edges before adding new "
+                         "ones - useful when re-running with a different "
+                         "--max-doc-freq, since edges are otherwise only ever "
+                         "added, never pruned")
+    ls.set_defaults(func=cmd_link_semantic)
 
     pr = sub.add_parser("rank", parents=[common])
     pr.add_argument("--top", type=int, default=10)

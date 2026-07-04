@@ -17,7 +17,11 @@ seeded_runs : list[str]                  run labels that have used this as a see
 
 Edge attributes
 ---------------
-strength    : "STRONG" | "WEAK" | "FAILED"
+strength    : "STRONG" | "WEAK" | "FAILED" | "SEMANTIC". The first three are a
+              pipeline-confidence scale (crawl/expand-derived, then downgraded
+              by `discover()`'s gates); SEMANTIC is a different axis entirely -
+              a purely lexical link between nodes whose ids share a rare word
+              (see `knowledge/semantic_links.py`), not a confidence level.
 """
 from __future__ import annotations
 
@@ -28,7 +32,7 @@ import networkx as nx
 
 NodeKind = str       # "MEME" | "COMPLEX"
 NodeRole = str       # see agents.memeticist.ALL_ROLES
-EdgeStrength = str   # "STRONG" | "WEAK" | "FAILED"
+EdgeStrength = str   # "STRONG" | "WEAK" | "FAILED" | "SEMANTIC"
 
 
 class KnowledgeWeb:
@@ -80,10 +84,19 @@ class KnowledgeWeb:
     def description(self, node_id: str) -> str:
         return self.g.nodes[node_id].get("description", "")
 
-    def strong_subgraph(self) -> nx.DiGraph:
+    def edge_subgraph_by_strength(self, strengths: set[str]) -> nx.DiGraph:
         keep = [(u, v) for u, v, d in self.g.edges(data=True)
-                if d.get("strength") == "STRONG"]
+                if d.get("strength") in strengths]
         return self.g.edge_subgraph(keep).copy()
+
+    def remove_edges_by_strength(self, strengths: set[str]) -> int:
+        drop = [(u, v) for u, v, d in self.g.edges(data=True)
+                if d.get("strength") in strengths]
+        self.g.remove_edges_from(drop)
+        return len(drop)
+
+    def strong_subgraph(self) -> nx.DiGraph:
+        return self.edge_subgraph_by_strength({"STRONG"})
 
     # -- persistence -------------------------------------------------------- #
     def save(self, path: str | Path) -> None:
