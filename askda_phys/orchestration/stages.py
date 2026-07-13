@@ -34,6 +34,7 @@ from tqdm import tqdm
 
 from .. import agents
 from ..config import RANKING_CHECKPOINT_PATH, STAGE1_CHECKPOINT_PATH, WEB_PATH
+from ..knowledge.descriptions import ensure_description
 from ..knowledge.ranking import rank_seeds
 from ..knowledge.web import KnowledgeWeb
 from .run import Run
@@ -83,12 +84,12 @@ def run_stage1(web: KnowledgeWeb, n: int, *,
     results = []
     for row in tqdm(candidates, desc="stage1", unit="seed", disable=verbosity < 1):
         seed = row["node"]
+        description = ensure_description(web, seed)
         run = Run(seed_node=seed)
         web.mark_seeded(seed, run.label)
-        web.save(WEB_PATH)
+        web.save(WEB_PATH)  # single save: captures both the backfilled description and mark_seeded
 
-        cafe = agents.cafeteam.run_cafeteam(
-            seed, web.description(seed), run=run)
+        cafe = agents.cafeteam.run_cafeteam(seed, description, run=run)
 
         entry = {
             "seed": seed,

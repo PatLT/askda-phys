@@ -65,6 +65,25 @@ def fetch_text(url: str, timeout: float = 30.0, max_chars: int = 20000) -> str:
     text = _WS_RE.sub(" ", _TAG_RE.sub(" ", html)).strip()
     return text[:max_chars]
 
+
+_P_RE = re.compile(r"<p\b[^>]*>(.*?)</p>", re.DOTALL | re.IGNORECASE)
+
+
+def fetch_first_paragraph(url: str, timeout: float = 30.0, min_chars: int = 60,
+                          max_chars: int = 2000) -> str:
+    """The first substantial <p>...</p> block on the page, as plain text.
+
+    Deterministic, no model call - good enough for a Wikipedia-style lede
+    paragraph (skips short/empty spacer <p> tags via `min_chars`); not a
+    general readability extractor. Returns "" if no <p> tag qualifies.
+    """
+    html = fetch_html(url, timeout=timeout)
+    for m in _P_RE.finditer(html):
+        text = _WS_RE.sub(" ", _TAG_RE.sub(" ", m.group(1))).strip()
+        if len(text) >= min_chars:
+            return text[:max_chars]
+    return ""
+
 def fetch_urls(url: str, timeout: float = 30.0, max_links: int = 100) -> list[str]:
     """Extract outbound links from a webpage.
     

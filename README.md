@@ -121,6 +121,7 @@ askda_phys/
 | Run context + logging | ✅ working | `NNN-{gitsha}` labels, per-agent prompt/response dumps |
 | Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model; supervisor/archivist now get the actual peer/critic review text and a real field label instead of placeholders |
 | Agent tool-call loop | ✅ working | `agents/tooling.py`: a `TOOL: <name>\n<arg>` wire protocol, opt-in via `AgentSpec.tool_loop`; wired into memeticist's expand step, advisor, supervisor, peer, and critic (bounded to `MAX_TOOL_TURNS`); `leangrad` keeps its own deterministic verifier-in-the-loop instead |
+| Node description backfill | ✅ working | `knowledge/descriptions.py`: crawl-only nodes start with `description=""` (only `source_url` known at crawl time), leaving `maniac` with almost no context; `ensure_description` lazily pulls the first substantial `<p>` off `source_url` (`reader.fetch_first_paragraph`, no model call) the moment a seed is used, and persists it onto the node so it's fetched once |
 | Initial-web page-link fetch | 🟡 minimal | `knowledge/build.fetch_links` performs a simple scrape of webpage for links to valid wiki pages |
 | web_search tool | 🟡 minimal | basic search via duckduckgo API; now actually callable by advisor/supervisor/memeticist-expand via the tool-call loop |
 | page reader tool | 🟡 minimal | naive HTML->text; swap in trafilatura/readability; now actually callable by memeticist-expand |

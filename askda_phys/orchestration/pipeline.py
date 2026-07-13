@@ -27,6 +27,7 @@ import re
 from dataclasses import dataclass, field
 
 from .. import agents
+from ..knowledge.descriptions import ensure_description
 from ..knowledge.web import KnowledgeWeb
 from ..tools import data as data_tool
 from .run import Run
@@ -70,7 +71,7 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
     web.mark_seeded(seed_node, run.label)
 
     title = seed_node
-    description = web.description(seed_node)
+    description = ensure_description(web, seed_node)
 
     # 1-2. cafeteam: maniac -> interpreter + sceptic, re-attempting internally
     _announce("cafeteam (maniac, interpreter, sceptic)", verbosity)
