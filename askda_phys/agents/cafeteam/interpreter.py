@@ -1,7 +1,7 @@
 """interpreter (SMART) - Reviewer-1, assesses analogies for novelty."""
 from __future__ import annotations
 
-from .base import Agent, AgentSpec
+from ..base import Agent, AgentSpec
 
 SPEC = AgentSpec(
     name="interpreter",

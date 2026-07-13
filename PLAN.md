@@ -1,14 +1,6 @@
----
-date: 2026-06-16
-tags:
-  - idea
-  - research
-  - agentic
-  - physics
----
 Agents for knowledge systemisation and discovery-by-analogy in physics = AKSDA-Phys
 
-Inspired by reading Carlo Rovelli's book [[Helgoland]] - in which he points out that Mach's philosophy (late 19th c.) undergirded important discoveries in 20th c. physics including special relativity and quantum mechanics. 
+Inspired by reading Carlo Rovelli's book [[Helgoland]] - in which he points out that Mach's philosophy (late 19th c.) undergirded important discoveries in 20th c. physics including special relativity and quantum mechanics. And Nagarjuna's work provided and even earlier and more distant antecedent. 
 
 An agentic discovery model composed of (in order):
 1. **memeticist**. From a starting point on the knowledge web, assess each of its outward links for how close they cleave to being a single 'meme' of knowledge. 
@@ -36,10 +28,12 @@ graph TD
 	in((*Web of knowledge*))
 	nd((*Single memetic node*))
 	A[memeticist]
-	B[maniac]
-	C[interpreter]
-	D[skeptic]
-	dc1{Pass/Fail}
+	subgraph cafeteam
+		B[maniac]
+		C[interpreter]
+		D[skeptic]
+		dc1{Pass/Fail}
+	end
 	bin(*Discard*)
 	E[advisor]
 	subgraph pubteam

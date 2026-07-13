@@ -84,8 +84,10 @@ askda_phys/
   scoring.py           SCORE= parsing and gate logic
   agents/
     base.py            Agent + AgentSpec (the shared 5-part template)
-    maniac, interpreter, sceptic, advisor, supervisor, memeticist, archivist
-    pubteam/           leangrad + peer + critic, plus the team runner
+    tooling.py         TOOL: call/observe loop + executors (reader, web_search, physlib, pyexec)
+    advisor, supervisor, memeticist, archivist
+    cafeteam/          maniac + interpreter + sceptic, plus the team runner (reattempt loop)
+    pubteam/           leangrad + peer + critic, plus the team runner (reattempt loop)
   knowledge/
     web.py             KnowledgeWeb (networkx wrapper + persistence)
     build.py           initial-web construction from seed pages
@@ -102,6 +104,7 @@ askda_phys/
 | Component | State | Notes |
 |---|---|---|
 | Agent base / spec / prompts | ✅ working | all agents (maniac, interpreter, sceptic, advisor, supervisor, memeticist, archivist, leangrad, peer, critic) carry their real prompts |
+| cafeteam / pubteam reattempt loops | ✅ working | `run_cafeteam`/`run_pubteam` re-run their idea agent (maniac / leangrad) up to `N_MANIAC_REATTEMPTS`/`N_LEANGRAD_REATTEMPTS` (default 2) on a REATTEMPT verdict, concatenating each round's reviewer reports back into the idea agent's context; see `scoring.reattempt_decision` for the ACCEPT/REATTEMPT/REJECT rule on summed reviewer scores |
 | Web-of-knowledge traversal (memeticist pass) | ✅ working | `knowledge.trawl_web` runs a cheap classify call over every unlabelled node (7 roles: PHILOSOPHY_CONCEPT/PHILOSOPHY_SCHOOL/PHILOSOPHER/SCIENCE_CONCEPT/SCIENTIST/PHENOMENON/OTHER), then the heavier expand+split call only over COMPLEX nodes whose role can source a seed (PHILOSOPHY_CONCEPT/PHILOSOPHY_SCHOOL/PHILOSOPHER); wired to `cli.py label-web` |
 | Tiered model dispatch | ✅ working | Deepseek API (default) + Anthropic API + Ollama + Mock; switch via `use_*()` |
 | KnowledgeWeb + persistence | ✅ working | MEME/COMPLEX, 7-role vocabulary (`agents.memeticist.ALL_ROLES`), STRONG/WEAK/FAILED |

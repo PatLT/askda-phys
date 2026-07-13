@@ -59,14 +59,16 @@ TIERS: dict[str, ModelConfig] = dict(DEEPSEEK_TIERS)
 
 
 # --------------------------------------------------------------------------- #
-# Gating thresholds
+# Gating / reattempts
 # --------------------------------------------------------------------------- #
-# Idea survives the interpreter/sceptic gate if the mean of the two scores is
-# at or above this value (scores are 1..5).
-IDEA_GATE_THRESHOLD: float = 3.0
-
-# Formalisation survives the peer/critic gate at or above this mean.
-PUB_GATE_THRESHOLD: float = 3.0
+# cafeteam (maniac -> interpreter+sceptic) and pubteam (leangrad -> peer+critic)
+# both gate their idea agent via `scoring.reattempt_decision` on the summed
+# 1-5 reviewer scores (see that function for the ACCEPT/REATTEMPT/REJECT
+# rule). These control how many re-tries each idea agent gets before the
+# gate is forced to a final ACCEPT/REJECT; attempt is 0-indexed, so the
+# default of 2 means up to 3 total attempts.
+N_MANIAC_REATTEMPTS: int = 2
+N_LEANGRAD_REATTEMPTS: int = 2
 
 
 # --------------------------------------------------------------------------- #

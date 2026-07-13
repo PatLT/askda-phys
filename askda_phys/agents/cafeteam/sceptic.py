@@ -1,7 +1,7 @@
 """sceptic (SMART) - Reviewer-2, assesses analogies for physical credibility."""
 from __future__ import annotations
 
-from .base import Agent, AgentSpec
+from ..base import Agent, AgentSpec
 
 SPEC = AgentSpec(
     name="sceptic",

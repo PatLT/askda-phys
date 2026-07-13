@@ -55,7 +55,7 @@ SPEC = AgentSpec(
         "summary (what was and was not captured). Append the Physlib source in a "
         "```lean code block and any numerical solver in a ```python code block."
     ),
-    context_template="Your supervisor's research proposal:\n{proposal}",
+    context_template="Your supervisor's research proposal:\n{proposal}{feedback}",
     tool_guidance=(
         "Use Physlib for proofs; the soundness of the model must be proven in "
         "Physlib. Use Python (scipy) for numerical solutions where needed."

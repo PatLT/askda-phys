@@ -1,18 +1,19 @@
 """The discovery pipeline.
 
 Implements the mermaid DAG from the plan as an explicit, readable function. The
-flow has two pass/fail gates and one bounded re-iteration (closed problem via
-`advisor`, then - only on the first pass - an open problem via `supervisor`):
+flow has two gates, each with their own bounded re-attempt loop internal to
+the subteam that runs them, plus one bounded re-iteration at the pipeline
+level (closed problem via `advisor`, then - only on the first pass - an open
+problem via `supervisor`):
 
-    maniac
-      -> interpreter (novelty) + sceptic (credibility)
-      -> GATE 1 (mean >= IDEA_GATE_THRESHOLD)
-           fail -> archive as FAILED transfer, stop
-           pass -> advisor (closed problem)
-      -> pubteam pass 1 (leangrad -> peer + critic)
-      -> GATE 2
-           fail -> archive as WEAK, stop
-           pass -> supervisor (open problem)
+    cafeteam (maniac -> interpreter + sceptic, re-attempts internally)
+      -> GATE 1 (cafeteam's own ACCEPT/REJECT, see scoring.reattempt_decision)
+           reject -> archive as FAILED transfer, stop
+           accept -> advisor (closed problem)
+      -> pubteam pass 1 (leangrad -> peer + critic, re-attempts internally)
+      -> GATE 2 (pubteam's own ACCEPT/REJECT)
+           reject -> archive as WEAK, stop
+           accept -> supervisor (open problem)
       -> pubteam pass 2
       -> archive (STRONG), stop
 
@@ -26,9 +27,7 @@ import re
 from dataclasses import dataclass, field
 
 from .. import agents
-from ..config import IDEA_GATE_THRESHOLD
 from ..knowledge.web import KnowledgeWeb
-from ..scoring import gate
 from ..tools import data as data_tool
 from .run import Run
 
@@ -65,7 +64,6 @@ def _announce(name: str, verbosity: int) -> None:
 
 
 def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
-             idea_threshold: float = IDEA_GATE_THRESHOLD,
              verbosity: int = 0) -> DiscoveryResult:
     run = run or Run(seed_node=seed_node)
     res = DiscoveryResult(seed=seed_node)
@@ -74,32 +72,25 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
     title = seed_node
     description = web.description(seed_node)
 
-    # 1. maniac
-    _announce("maniac", verbosity)
-    analogy = agents.maniac.agent(
-        {"title": title, "description": description}, run=run)
-    res.analogy = analogy.text
-
-    # 2. interpreter + sceptic
-    _announce("interpreter", verbosity)
-    interp = agents.interpreter.agent({"maniac": analogy.text}, run=run)
-    _announce("sceptic", verbosity)
-    skep = agents.sceptic.agent({"maniac": analogy.text}, run=run)
-    res.novelty, res.credibility = interp.score, skep.score
+    # 1-2. cafeteam: maniac -> interpreter + sceptic, re-attempting internally
+    _announce("cafeteam (maniac, interpreter, sceptic)", verbosity)
+    cafe = agents.cafeteam.run_cafeteam(title, description, run=run)
+    res.analogy = cafe.analogy
+    res.novelty, res.credibility = cafe.novelty_score, cafe.credibility_score
 
     # GATE 1
-    res.idea_passed = gate([interp.score, skep.score], idea_threshold)
+    res.idea_passed = cafe.passed
     if not res.idea_passed:
-        res.notes.append("Idea gate failed.")
+        res.notes.append(f"Idea gate failed after {cafe.attempts} attempt(s).")
         _archive(web, res, run, verbosity=verbosity)
         return _finish(res, run)
 
     # 3. advisor -> closed problem
     _announce("advisor", verbosity)
     advisor_out = agents.advisor.agent({
-        "maniac": analogy.text,
-        "interpreter": interp.text,
-        "sceptic": skep.text,
+        "maniac": cafe.analogy,
+        "interpreter": cafe.novelty_text,
+        "sceptic": cafe.credibility_text,
     }, run=run)
     res.closed_proposal = advisor_out.text
     grounded = list(advisor_out.meta.get("grounded", []))
@@ -112,7 +103,8 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
         references=data_tool.format_references(grounded))
     res.pub1_passed = pass1.passed
     if not pass1.passed:
-        res.notes.append("Pubteam pass 1 (closed problem) failed.")
+        res.notes.append(f"Pubteam pass 1 (closed problem) failed after "
+                         f"{pass1.attempts} attempt(s).")
         res.strength = classify_strength(True, False, None)
         _archive(web, res, run, problem=advisor_out.text, verbosity=verbosity)
         return _finish(res, run)
@@ -135,7 +127,8 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
         references=data_tool.format_references(grounded_open))
     res.pub2_passed = pass2.passed
     if not pass2.passed:
-        res.notes.append("Pubteam pass 2 (open problem) failed; closed result stands.")
+        res.notes.append(f"Pubteam pass 2 (open problem) failed after "
+                         f"{pass2.attempts} attempt(s); closed result stands.")
 
     res.strength = classify_strength(True, True, pass2.passed)
     _archive(web, res, run, problem=supervisor_out.text or advisor_out.text,

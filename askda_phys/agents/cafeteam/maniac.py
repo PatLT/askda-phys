@@ -1,7 +1,7 @@
 """maniac (GENIUS) - blue-sky researcher drawing analogies from philosophy to physics."""
 from __future__ import annotations
 
-from .base import Agent, AgentSpec
+from ..base import Agent, AgentSpec
 
 SPEC = AgentSpec(
     name="maniac",
@@ -33,7 +33,8 @@ SPEC = AgentSpec(
         "down the relevant ideas/concepts drawn from the seed concept, and it "
         "should assume graduate-level familiarity with concepts in physics."
     ),
-    context_template="Seed node:\nTitle: {title}\nDescription: {description}",
+    context_template=("Seed node:\nTitle: {title}\nDescription: {description}"
+                      "{feedback}"),
     tool_guidance="",  # no tools
     reports_score=False,
 )
