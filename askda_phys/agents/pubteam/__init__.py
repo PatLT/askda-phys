@@ -31,6 +31,7 @@ class PubResult:
     passed: bool
     report_meta: dict
     attempts: int
+    total_score: float
 
 
 def _summarise_lean(meta: dict) -> str:
@@ -60,6 +61,7 @@ def run_pubteam(proposal: str, run: "Run | None" = None,
                 n_reattempts: int = N_LEANGRAD_REATTEMPTS) -> PubResult:
     feedback_rounds: list[str] = []
     report = p = c = None
+    total = 0.0
     for attempt in range(n_reattempts + 1):
         report = leangrad.agent(
             {"proposal": proposal, "feedback": _feedback_block(feedback_rounds)},
@@ -72,11 +74,11 @@ def run_pubteam(proposal: str, run: "Run | None" = None,
         c = critic.agent({"report": report.text, "lean_verification": lean_verification},
                          run=run, iteration=iteration)
 
-        decision = reattempt_decision(
-            total_score([p.score, c.score]), attempt, n_reattempts)
+        total = total_score([p.score, c.score])
+        decision = reattempt_decision(total, attempt, n_reattempts)
         if decision != "REATTEMPT":
             return PubResult(report.text, p.score, c.score, p.text, c.text,
-                             decision == "ACCEPT", report.meta, attempt + 1)
+                             decision == "ACCEPT", report.meta, attempt + 1, total)
         feedback_rounds.append(
             f"Peer review (accuracy/correctness): {p.text}\n\n"
             f"Critic review (novelty): {c.text}")
@@ -84,4 +86,4 @@ def run_pubteam(proposal: str, run: "Run | None" = None,
     # unreachable: reattempt_decision always resolves ACCEPT/REJECT by
     # attempt == n_reattempts (see its docstring); kept as a defensive fallback.
     return PubResult(report.text, p.score, c.score, p.text, c.text,
-                     False, report.meta, n_reattempts + 1)
+                     False, report.meta, n_reattempts + 1, total)

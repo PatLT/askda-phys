@@ -6,7 +6,7 @@ __version__ = "0.0.1"
 from . import agents, config, models, scoring  # noqa: F401
 from .knowledge import (KnowledgeWeb, add_semantic_links, best_seed,
                         build_initial_web, rank_seeds, trawl_web)
-from .orchestration import DiscoveryResult, Run, discover
+from .orchestration import DiscoveryResult, Run, discover, run_stage0_ranking, run_stage1
 
 __all__ = [
     "config",
@@ -22,4 +22,6 @@ __all__ = [
     "Run",
     "discover",
     "DiscoveryResult",
+    "run_stage0_ranking",
+    "run_stage1",
 ]

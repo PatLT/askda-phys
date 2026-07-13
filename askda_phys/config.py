@@ -80,6 +80,13 @@ RUNS_DIR: Path = DATA_ROOT / "runs"
 WEB_PATH: Path = DATA_ROOT / "web.json"
 MEME_DESC_DIR: Path = DATA_ROOT / "meme_descriptions"
 
+# Staged-pipeline checkpoints (see orchestration/stages.py). ranking.json is a
+# full snapshot, overwritten each stage-0 run; stage1.jsonl is an append-only
+# log, one line per seed processed, so a batch can be resumed across sessions.
+CHECKPOINTS_DIR: Path = DATA_ROOT / "checkpoints"
+RANKING_CHECKPOINT_PATH: Path = CHECKPOINTS_DIR / "ranking.json"
+STAGE1_CHECKPOINT_PATH: Path = CHECKPOINTS_DIR / "stage1.jsonl"
+
 
 # --------------------------------------------------------------------------- #
 # Seed pages for the initial web of knowledge

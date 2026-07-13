@@ -3,8 +3,9 @@
     python -m askda_phys.cli build-web        # construct + save the initial web
     python -m askda_phys.cli label-web        # run the memeticist pass over the web
     python -m askda_phys.cli link-semantic    # add lexical SEMANTIC edges
-    python -m askda_phys.cli rank             # list ranked unused seed nodes
-    python -m askda_phys.cli run [--seed ID]  # run one discovery pass
+    python -m askda_phys.cli rank             # rank seeds, persist full checkpoint
+    python -m askda_phys.cli stage1 --n 10    # cafeteam -> advisor on the next 10 seeds
+    python -m askda_phys.cli run [--seed ID]  # run one discovery pass (unstaged)
     python -m askda_phys.cli run --mock       # run offline with the mock model
 
 Every subcommand accepts --quiet (verbosity=0, suppresses output) and --debug
@@ -16,10 +17,10 @@ import argparse
 
 from . import models
 from .agents.memeticist import ALL_ROLES, EXPANDABLE_ROLES
-from .config import WEB_PATH
-from .knowledge import KnowledgeWeb, add_semantic_links, build_initial_web, rank_seeds, trawl_web
+from .config import RANKING_CHECKPOINT_PATH, STAGE1_CHECKPOINT_PATH, WEB_PATH
+from .knowledge import KnowledgeWeb, add_semantic_links, build_initial_web, trawl_web
 from .knowledge.ranking import best_seed
-from .orchestration import discover
+from .orchestration import discover, run_stage0_ranking, run_stage1
 
 
 def _verbosity(args) -> int:
@@ -95,17 +96,31 @@ def cmd_link_semantic(args) -> None:
 def cmd_rank(args) -> None:
     verbosity = _verbosity(args)
     web = _load_web()
-    ranked = rank_seeds(web)
+    ranked = run_stage0_ranking(web)
     if not ranked:
         if verbosity >= 1:
             print("No rankable seed nodes (need MEME+PHILOSOPHY_CONCEPT nodes "
                   "reachable to a PHENOMENON node). Run the memeticist pass first.")
         return
     if verbosity >= 1:
-        for s in ranked[: args.top]:
-            print(f"{s.score:+.3f}  {s.node}  "
-                  f"(->{s.nearest_phenomenon} d={s.distance} c_phen={s.phenomenon_centrality:.3f} "
-                  f"~sci={s.nearest_science} c_sci={s.science_centrality:.3f})")
+        for row in ranked[: args.top]:
+            print(f"{row['score']:+.3f}  {row['node']}  "
+                  f"(->{row['nearest_phenomenon']} d={row['distance']} "
+                  f"c_phen={row['phenomenon_centrality']:.3f} "
+                  f"~sci={row['nearest_science']} c_sci={row['science_centrality']:.3f})")
+        print(f"full ranking ({len(ranked)} seed(s)) -> {RANKING_CHECKPOINT_PATH}")
+
+
+def cmd_stage1(args) -> None:
+    verbosity = _verbosity(args)
+    if args.mock:
+        models.use_mock()
+    web = _load_web()
+    results = run_stage1(web, args.n, verbosity=verbosity)
+    if verbosity >= 1:
+        accepted = sum(1 for e in results if e["cafeteam"]["passed"])
+        print(f"stage1: processed {len(results)} seed(s), {accepted} accepted by "
+              f"cafeteam -> {STAGE1_CHECKPOINT_PATH}")
 
 
 def cmd_run(args) -> None:
@@ -153,8 +168,16 @@ def main(argv=None) -> None:
     ls.set_defaults(func=cmd_link_semantic)
 
     pr = sub.add_parser("rank", parents=[common])
-    pr.add_argument("--top", type=int, default=10)
+    pr.add_argument("--top", type=int, default=10,
+                    help="how many rows to print (the full ranking is always "
+                         "persisted, regardless of this)")
     pr.set_defaults(func=cmd_rank)
+
+    s1 = sub.add_parser("stage1", parents=[common])
+    s1.add_argument("--n", type=int, default=10,
+                    help="number of not-yet-processed seeds to run through "
+                         "cafeteam -> advisor this call")
+    s1.set_defaults(func=cmd_stage1)
 
     rn = sub.add_parser("run", parents=[common])
     rn.add_argument("--seed", default=None)

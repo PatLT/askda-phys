@@ -58,11 +58,18 @@ python -m pytest -q
 # 1. build + save the initial web of knowledge
 python -m askda_phys.cli build-web
 
-# 2. (after a memeticist pass labels nodes) rank unused memetic seeds
+# 2. (after a memeticist pass labels nodes) rank seeds - persists the FULL
+#    ordered list to .askda/checkpoints/ranking.json, prints the top --top
 python -m askda_phys.cli rank
 
-# 3. run one discovery pass - offline, no model server needed:
+# 3a. run one discovery pass unstaged, start to finish - offline, no model
+#     server needed:
 python -m askda_phys.cli run --mock
+
+# 3b. ...or run it staged, to control token spend: cafeteam -> advisor only,
+#     on the next --n not-yet-processed seeds from the ranking checkpoint,
+#     appended to .askda/checkpoints/stage1.jsonl (later stages: TODO)
+python -m askda_phys.cli stage1 --n 10 --mock
 ```
 
 In code:
@@ -96,6 +103,7 @@ askda_phys/
   orchestration/
     run.py             git-stamped run label, output dir, prompt/response logging
     pipeline.py        the full discovery DAG (two gates + bounded re-iteration)
+    stages.py          checkpointed stage 0 (rank) / stage 1 (cafeteam -> advisor)
   cli.py
 ```
 
@@ -109,6 +117,7 @@ askda_phys/
 | Tiered model dispatch | ✅ working | Deepseek API (default) + Anthropic API + Ollama + Mock; switch via `use_*()` |
 | KnowledgeWeb + persistence | ✅ working | MEME/COMPLEX, 7-role vocabulary (`agents.memeticist.ALL_ROLES`), STRONG/WEAK/FAILED |
 | Seed ranking | ✅ working | implements the distance−centrality scoring from the plan |
+| Staged / checkpointed pipeline | ✅ working (stage 0-1) | `orchestration/stages.py`: stage 0 ranks + persists the full ordered list (`.askda/checkpoints/ranking.json`, overwritten each run); stage 1 runs cafeteam->advisor on the next `n` seeds not yet in `.askda/checkpoints/stage1.jsonl` (append-only), so a batch is resumable across sessions without re-spending tokens. Seed selection reads only the checkpoint files, not live `web.json` state; `web.mark_seeded()` is still recorded for every processed seed. Later stages (pubteam, supervisor, archive) not yet built |
 | Run context + logging | ✅ working | `NNN-{gitsha}` labels, per-agent prompt/response dumps |
 | Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model; supervisor/archivist now get the actual peer/critic review text and a real field label instead of placeholders |
 | Agent tool-call loop | ✅ working | `agents/tooling.py`: a `TOOL: <name>\n<arg>` wire protocol, opt-in via `AgentSpec.tool_loop`; wired into memeticist's expand step, advisor, supervisor, peer, and critic (bounded to `MAX_TOOL_TURNS`); `leangrad` keeps its own deterministic verifier-in-the-loop instead |

@@ -29,6 +29,7 @@ class CafeResult:
     credibility_text: str
     passed: bool
     attempts: int
+    total_score: float
 
 
 def _feedback_block(rounds: list[str]) -> str:
@@ -45,6 +46,7 @@ def run_cafeteam(title: str, description: str, run: "Run | None" = None,
                  n_reattempts: int = N_MANIAC_REATTEMPTS) -> CafeResult:
     feedback_rounds: list[str] = []
     analogy = interp = skep = None
+    total = 0.0
     for attempt in range(n_reattempts + 1):
         analogy = maniac.agent(
             {"title": title, "description": description,
@@ -53,11 +55,12 @@ def run_cafeteam(title: str, description: str, run: "Run | None" = None,
         interp = interpreter.agent({"maniac": analogy.text}, run=run, iteration=attempt)
         skep = sceptic.agent({"maniac": analogy.text}, run=run, iteration=attempt)
 
-        decision = reattempt_decision(
-            total_score([interp.score, skep.score]), attempt, n_reattempts)
+        total = total_score([interp.score, skep.score])
+        decision = reattempt_decision(total, attempt, n_reattempts)
         if decision != "REATTEMPT":
             return CafeResult(analogy.text, interp.score, skep.score,
-                             interp.text, skep.text, decision == "ACCEPT", attempt + 1)
+                             interp.text, skep.text, decision == "ACCEPT",
+                             attempt + 1, total)
         feedback_rounds.append(
             f"Novelty review (interpreter): {interp.text}\n\n"
             f"Credibility review (sceptic): {skep.text}")
@@ -65,4 +68,4 @@ def run_cafeteam(title: str, description: str, run: "Run | None" = None,
     # unreachable: reattempt_decision always resolves ACCEPT/REJECT by
     # attempt == n_reattempts (see its docstring); kept as a defensive fallback.
     return CafeResult(analogy.text, interp.score, skep.score, interp.text, skep.text,
-                      False, n_reattempts + 1)
+                      False, n_reattempts + 1, total)
