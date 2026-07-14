@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from tqdm import tqdm
+
 from ...config import N_MANIAC_REATTEMPTS
 from ...scoring import reattempt_decision, total_score
 from . import interpreter, maniac, sceptic
@@ -43,20 +45,41 @@ def _feedback_block(rounds: list[str]) -> str:
 
 
 def run_cafeteam(title: str, description: str, run: "Run | None" = None,
-                 n_reattempts: int = N_MANIAC_REATTEMPTS) -> CafeResult:
+                 n_reattempts: int = N_MANIAC_REATTEMPTS,
+                 verbosity: int = 0) -> CafeResult:
+    """verbosity >= 2 (debug): trace each attempt - seed id, which agent is
+    currently running, each reviewer's score as it comes back, and the
+    resulting total/decision for that attempt."""
     feedback_rounds: list[str] = []
     analogy = interp = skep = None
     total = 0.0
-    for attempt in range(n_reattempts + 1):
+    total_attempts = n_reattempts + 1
+    for attempt in range(total_attempts):
+        label = f"[{title}] attempt {attempt + 1}/{total_attempts}"
+
+        if verbosity >= 2:
+            tqdm.write(f"{label}: maniac")
         analogy = maniac.agent(
             {"title": title, "description": description,
              "feedback": _feedback_block(feedback_rounds)},
             run=run, iteration=attempt)
+
+        if verbosity >= 2:
+            tqdm.write(f"{label}: interpreter (novelty)")
         interp = interpreter.agent({"maniac": analogy.text}, run=run, iteration=attempt)
+        if verbosity >= 2:
+            tqdm.write(f"{label}: interpreter SCORE={interp.score}")
+
+        if verbosity >= 2:
+            tqdm.write(f"{label}: sceptic (credibility)")
         skep = sceptic.agent({"maniac": analogy.text}, run=run, iteration=attempt)
+        if verbosity >= 2:
+            tqdm.write(f"{label}: sceptic SCORE={skep.score}")
 
         total = total_score([interp.score, skep.score])
         decision = reattempt_decision(total, attempt, n_reattempts)
+        if verbosity >= 2:
+            tqdm.write(f"{label}: total={total} -> {decision}")
         if decision != "REATTEMPT":
             return CafeResult(analogy.text, interp.score, skep.score,
                              interp.text, skep.text, decision == "ACCEPT",

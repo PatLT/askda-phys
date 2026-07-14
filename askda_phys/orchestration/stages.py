@@ -89,7 +89,7 @@ def run_stage1(web: KnowledgeWeb, n: int, *,
         web.mark_seeded(seed, run.label)
         web.save(WEB_PATH)  # single save: captures both the backfilled description and mark_seeded
 
-        cafe = agents.cafeteam.run_cafeteam(seed, description, run=run)
+        cafe = agents.cafeteam.run_cafeteam(seed, description, run=run, verbosity=verbosity)
 
         entry = {
             "seed": seed,

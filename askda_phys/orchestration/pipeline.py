@@ -75,7 +75,7 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
 
     # 1-2. cafeteam: maniac -> interpreter + sceptic, re-attempting internally
     _announce("cafeteam (maniac, interpreter, sceptic)", verbosity)
-    cafe = agents.cafeteam.run_cafeteam(title, description, run=run)
+    cafe = agents.cafeteam.run_cafeteam(title, description, run=run, verbosity=verbosity)
     res.analogy = cafe.analogy
     res.novelty, res.credibility = cafe.novelty_score, cafe.credibility_score
 
