@@ -29,12 +29,24 @@ _TOOL_CALL_RE = re.compile(r"^TOOL:\s*(\w+)\s*(.*)", re.DOTALL)
 _NEXT_CALL_RE = re.compile(r"\n\s*TOOL:\s*\w+")
 
 
-def _safe(fn: Callable[[str], str]) -> Callable[[str], str]:
-    def wrapped(arg: str) -> str:
+def _safe(
+    fn: Callable[[str], str | tuple[str, list[str]]]
+) -> Callable[[str], tuple[str, list[str]]]:
+    """Normalizes every executor to `(observation_text, citations)`. Most
+    tools only ever return plain text (`citations` stays `[]`); paperqa is
+    the one exception, returning `(text, citations)` itself - citations
+    travel to `AgentResult.meta` (see base.py's act()), never through the
+    observation text, so they're captured for the checkpoint without relying
+    on the model to faithfully reproduce them."""
+    def wrapped(arg: str) -> tuple[str, list[str]]:
         try:
-            return fn(arg)[:_MAX_OBSERVATION_CHARS]
+            result = fn(arg)
         except Exception as exc:  # a flaky tool degrades the conversation, not crashes it
-            return f"[tool error: {exc}]"
+            return f"[tool error: {exc}]", []
+        if isinstance(result, tuple):
+            text, citations = result
+            return text[:_MAX_OBSERVATION_CHARS], citations
+        return result[:_MAX_OBSERVATION_CHARS], []
     return wrapped
 
 

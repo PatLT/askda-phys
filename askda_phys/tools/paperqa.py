@@ -20,6 +20,13 @@ paper-qa has no offline/mock mode - it does real web search and paper
 download - so this tool refuses to run under the mock backend rather than
 pretending to.
 
+paper-qa's local paper_directory defaults to Path.cwd() when unset, which
+would otherwise mean every call recursively indexes this whole repo -
+including our own .askda/runs/*.txt agent transcripts - as if it were a
+paper corpus, alongside whatever it fetches from the web. `_settings` pins
+it to config.PAPERQA_PAPER_DIR (a dedicated, otherwise-empty directory)
+instead, so only papers paper-qa itself downloaded are ever indexed.
+
 paper-qa (and litellm underneath it) are very chatty - progress output plus a
 lot of logging, including citation/metadata-lookup warnings from resolving
 references against Crossref, which are mostly benign noise from its own
@@ -37,7 +44,7 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from ..config import PAPERQA_LOG_PATH, TIERS
+from ..config import PAPERQA_LOG_PATH, PAPERQA_PAPER_DIR, TIERS
 
 if TYPE_CHECKING:  # type-only: the real imports are deferred below (heavy - litellm etc.)
     from paperqa import Settings
@@ -97,11 +104,18 @@ def _settings(tier: str) -> Settings:
     from paperqa import Settings  # deferred: heavy import (litellm etc.)
 
     model = _litellm_model(tier)
+    PAPERQA_PAPER_DIR.mkdir(parents=True, exist_ok=True)
     return Settings(
         llm=model,
         summary_llm=model,
         embedding=EMBEDDING_MODEL,
-        agent={"agent_llm": model}, # type: ignore
+        agent={
+            "agent_llm": model,
+            "index": {
+                "paper_directory": str(PAPERQA_PAPER_DIR),
+                "recurse_subdirectories": False,
+            },
+        },  # type: ignore
     )
 
 

@@ -92,6 +92,14 @@ MEME_DESC_DIR: Path = DATA_ROOT / "meme_descriptions"
 # of the console. `tail -f .askda/paperqa.log` to watch it live.
 PAPERQA_LOG_PATH: Path = DATA_ROOT / "paperqa.log"
 
+# paperqa.Settings().agent.index.paper_directory defaults to Path.cwd() if
+# left unset, which for this project means the whole repo - including our own
+# .askda/runs/*.txt agent transcripts - gets recursively walked and indexed
+# as if it were a paper corpus on every call. tools/paperqa.py pins it here
+# instead: a dedicated, otherwise-empty directory so paper-qa only ever
+# indexes papers it has itself downloaded via web search.
+PAPERQA_PAPER_DIR: Path = DATA_ROOT / "paperqa_papers"
+
 # Staged-pipeline checkpoints (see orchestration/stages.py). ranking.json is a
 # full snapshot, overwritten each stage-0 run; stage1.jsonl is an append-only
 # log, one line per seed processed, so a batch can be resumed across sessions.

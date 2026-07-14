@@ -35,9 +35,9 @@ SPEC = AgentSpec(
         "been preserved or even extended.\n\n"
         "Return a single short paragraph assessment. At the very end, return a "
         "numeric score formatted exactly as `SCORE=value`, where value is 1 "
-        "(proposal significantly strays from key insights of the original idea) "
-        "to 4 (key insights of the original idea are core to the research proposal, "
-        "and the resulting proposal is highly novel)."
+        "(proposal significantly strays from key insights of the original idea, "
+        "or novelty is significantly diluted) to 4 (key insights of the original idea "
+        "are core to the research proposal, and the resulting proposal is highly novel)."
     ),
     context_template=(
         "Research proposal to review:\n{proposal}\n\n"
