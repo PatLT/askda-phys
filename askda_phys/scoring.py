@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from statistics import mean
 
-_SCORE_RE = re.compile(r"SCORE\s*=\s*([1-5](?:\.\d+)?)", re.IGNORECASE)
+_SCORE_RE = re.compile(r"SCORE\s*=\s*([0-5](?:\.\d+)?)", re.IGNORECASE)
 
 
 def parse_score(text: str) -> float | None:

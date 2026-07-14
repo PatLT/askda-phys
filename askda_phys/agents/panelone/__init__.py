@@ -7,6 +7,11 @@ each subsequent one seeing every prior round's reviews concatenated onto its
 original context - and simply returns whichever attempt scored highest
 (summed across all three reviewers). Every seed that reaches panelone gets a
 best-effort proposal out; there's no rejection to speak of.
+
+The three reviewers' score ranges are deliberately uneven - bureaucrat 0-1,
+internal 1-4, revtwo 1-5 - so total_score still tops out at 10, matching
+cafeteam/pubteam's own two-reviewer max, while de-weighting internal relative
+to revtwo within that budget. Don't "fix" this into three uniform 1-5 scales.
 """
 from __future__ import annotations
 
