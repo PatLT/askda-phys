@@ -2,18 +2,17 @@
 from __future__ import annotations
 
 from . import (
-    advisor,
     archivist,
     memeticist,
     supervisor,
 )
-from . import cafeteam, pubteam
+from . import cafeteam, panelone, pubteam
 
 __all__ = [
-    "advisor",
     "supervisor",
     "memeticist",
     "archivist",
     "cafeteam",
+    "panelone",
     "pubteam",
 ]

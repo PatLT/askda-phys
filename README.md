@@ -66,10 +66,15 @@ python -m askda_phys.cli rank
 #     server needed:
 python -m askda_phys.cli run --mock
 
-# 3b. ...or run it staged, to control token spend: cafeteam -> advisor only,
-#     on the next --n not-yet-processed seeds from the ranking checkpoint,
-#     appended to .askda/checkpoints/stage1.jsonl (later stages: TODO)
+# 3b. ...or run it staged, to control token spend: cafeteam -> panelone
+#     (advisor + reviewers) only, on the next --n not-yet-processed seeds
+#     from the ranking checkpoint, appended to .askda/checkpoints/stage1.jsonl
+#     (later stages: TODO)
 python -m askda_phys.cli stage1 --n 10 --mock
+
+# 3c. re-run just panelone (not cafeteam) on existing accepted seeds, e.g.
+#     after tweaking advisor's/reviewers' prompts:
+python -m askda_phys.cli stage1 --n 10 --advisor-only --mock
 ```
 
 In code:
@@ -91,19 +96,21 @@ askda_phys/
   scoring.py           SCORE= parsing and gate logic
   agents/
     base.py            Agent + AgentSpec (the shared 5-part template)
-    tooling.py         TOOL: call/observe loop + executors (reader, web_search, physlib, pyexec)
-    advisor, supervisor, memeticist, archivist
+    tooling.py         TOOL: call/observe loop + executors (reader, web_search, physlib, pyexec, paperqa)
+    supervisor, memeticist, archivist
     cafeteam/          maniac + interpreter + sceptic, plus the team runner (reattempt loop)
     pubteam/           leangrad + peer + critic, plus the team runner (reattempt loop)
+    panelone/          advisor + internal/revtwo/bureaucrat, plus the team runner
+                       (keeps the highest-scoring attempt - no accept/reject, unlike the above two)
   knowledge/
     web.py             KnowledgeWeb (networkx wrapper + persistence)
     build.py           initial-web construction from seed pages
     ranking.py         centrality-based seed scoring
-  tools/               search, reader, physlib (Lean), pyexec (scipy)
+  tools/               search, reader, physlib (Lean), pyexec (scipy), paperqa (literature review)
   orchestration/
     run.py             git-stamped run label, output dir, prompt/response logging
     pipeline.py        the full discovery DAG (two gates + bounded re-iteration)
-    stages.py          checkpointed stage 0 (rank) / stage 1 (cafeteam -> advisor)
+    stages.py          checkpointed stage 0 (rank) / stage 1 (cafeteam -> panelone)
   cli.py
 ```
 
@@ -111,19 +118,21 @@ askda_phys/
 
 | Component | State | Notes |
 |---|---|---|
-| Agent base / spec / prompts | ✅ working | all agents (maniac, interpreter, sceptic, advisor, supervisor, memeticist, archivist, leangrad, peer, critic) carry their real prompts |
+| Agent base / spec / prompts | ✅ working | maniac, interpreter, sceptic, advisor, supervisor, memeticist, archivist, leangrad, peer, critic carry real prompts; internal/revtwo/bureaucrat (panelone's reviewers) are skeletons (persona/objective marked TBD) awaiting real content |
 | cafeteam / pubteam reattempt loops | ✅ working | `run_cafeteam`/`run_pubteam` re-run their idea agent (maniac / leangrad) up to `N_MANIAC_REATTEMPTS`/`N_LEANGRAD_REATTEMPTS` (default 2) on a REATTEMPT verdict, concatenating each round's reviewer reports back into the idea agent's context; see `scoring.reattempt_decision` for the ACCEPT/REATTEMPT/REJECT rule on summed reviewer scores |
+| panelone (advisor's review loop) | ✅ working (reviewer prompts TBD) | `run_panelone` re-runs advisor up to `N_ADVISOR_REATTEMPTS` (default 1) times, each round's internal/revtwo/bureaucrat reviews fed back to advisor - but unlike cafeteam/pubteam there's no accept/reject: it always returns whichever attempt scored highest (`scoring.total_score` across the three reviewers), never rejects a seed |
 | Web-of-knowledge traversal (memeticist pass) | ✅ working | `knowledge.trawl_web` runs a cheap classify call over every unlabelled node (7 roles: PHILOSOPHY_CONCEPT/PHILOSOPHY_SCHOOL/PHILOSOPHER/SCIENCE_CONCEPT/SCIENTIST/PHENOMENON/OTHER), then the heavier expand+split call only over COMPLEX nodes whose role can source a seed (PHILOSOPHY_CONCEPT/PHILOSOPHY_SCHOOL/PHILOSOPHER); wired to `cli.py label-web` |
 | Tiered model dispatch | ✅ working | Deepseek API (default) + Anthropic API + Ollama + Mock; switch via `use_*()` |
 | KnowledgeWeb + persistence | ✅ working | MEME/COMPLEX, 7-role vocabulary (`agents.memeticist.ALL_ROLES`), STRONG/WEAK/FAILED |
 | Seed ranking | ✅ working | implements the distance−centrality scoring from the plan |
-| Staged / checkpointed pipeline | ✅ working (stage 0-1) | `orchestration/stages.py`: stage 0 ranks + persists the full ordered list (`.askda/checkpoints/ranking.json`, overwritten each run); stage 1 runs cafeteam->advisor on the next `n` seeds not yet in `.askda/checkpoints/stage1.jsonl` (append-only), so a batch is resumable across sessions without re-spending tokens. Seed selection reads only the checkpoint files, not live `web.json` state; `web.mark_seeded()` is still recorded for every processed seed. Later stages (pubteam, supervisor, archive) not yet built |
+| Staged / checkpointed pipeline | ✅ working (stage 0-1) | `orchestration/stages.py`: stage 0 ranks + persists the full ordered list (`.askda/checkpoints/ranking.json`, overwritten each run); stage 1 runs cafeteam->panelone on the next `n` seeds not yet in `.askda/checkpoints/stage1.jsonl` (append-only), so a batch is resumable across sessions without re-spending tokens - the stored "advisor" entry is panelone's best-scoring attempt (proposal, all three reviews, total score), not a single call. `--advisor-only` re-runs just panelone on existing accepted entries (rewrites in place). Seed selection reads only the checkpoint files, not live `web.json` state; `web.mark_seeded()` is still recorded for every processed seed. Later stages (pubteam, supervisor, archive) not yet built |
 | Run context + logging | ✅ working | `NNN-{gitsha}` labels, per-agent prompt/response dumps |
 | Pipeline (gates + re-iteration) | ✅ working | runs offline with the mock model; supervisor/archivist now get the actual peer/critic review text and a real field label instead of placeholders |
-| Agent tool-call loop | ✅ working | `agents/tooling.py`: a `TOOL: <name>\n<arg>` wire protocol, opt-in via `AgentSpec.tool_loop`; wired into memeticist's expand step, advisor, supervisor, peer, and critic (bounded to `MAX_TOOL_TURNS`); `leangrad` keeps its own deterministic verifier-in-the-loop instead |
+| Agent tool-call loop | ✅ working | `agents/tooling.py`: a `TOOL: <name>\n<arg>` wire protocol, opt-in via `AgentSpec.tool_loop`; wired into memeticist's expand step, advisor, supervisor, peer, critic, and (new) paperqa (bounded to `MAX_TOOL_TURNS`); `leangrad` keeps its own deterministic verifier-in-the-loop instead |
+| paperqa literature-review tool | ✅ working | `tools/paperqa.py`: wraps `paper-qa`'s `ask()`, mapping whichever backend/tier is active (config.TIERS) onto LiteLLM's native `deepseek/`/`anthropic/`/`ollama/` routing for all three of its LLM roles; embeddings are pinned to a local `ollama/nomic-embed-text` regardless of chat backend (neither Anthropic nor DeepSeek offer embeddings); refuses cleanly under the mock backend (no offline equivalent - it does real web search/paper download). Wired into `advisor`'s tools, replacing its earlier `web_search` |
 | Node description backfill | ✅ working | `knowledge/descriptions.py`: crawl-only nodes start with `description=""` (only `source_url` known at crawl time), leaving `maniac` with almost no context; `ensure_description` lazily pulls the first substantial `<p>` off `source_url` (`reader.fetch_first_paragraph`, no model call) the moment a seed is used, and persists it onto the node so it's fetched once |
 | Initial-web page-link fetch | 🟡 minimal | `knowledge/build.fetch_links` performs a simple scrape of webpage for links to valid wiki pages |
-| web_search tool | 🟡 minimal | basic search via duckduckgo API; now actually callable by advisor/supervisor/memeticist-expand via the tool-call loop |
+| web_search tool | 🟡 minimal | basic search via duckduckgo API; callable by supervisor/memeticist-expand via the tool-call loop (advisor moved to the paperqa tool instead) |
 | page reader tool | 🟡 minimal | naive HTML->text; swap in trafilatura/readability; now actually callable by memeticist-expand |
 | Physlib (Lean) verify | 🟡 real parser + lake call | structured errors/sorries/progress; runs `lake` when `ASKDA_PHYSLIB_PATH` is set, graceful no-op otherwise; now also callable live by peer/critic (in addition to leangrad's own verifier loop) |
 | leangrad repair loop | ✅ working | linear verifier-in-the-loop: structured errors fed back, keeps best partial by `progress`, numerical fallback on exhaustion; its verdict is now also summarised into peer/critic's own context |

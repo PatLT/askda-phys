@@ -70,6 +70,13 @@ TIERS: dict[str, ModelConfig] = dict(DEEPSEEK_TIERS)
 N_MANIAC_REATTEMPTS: int = 2
 N_LEANGRAD_REATTEMPTS: int = 2
 
+# panelone (advisor -> internal+revtwo+bureaucrat) does NOT gate ACCEPT/REJECT
+# on this score the way cafeteam/pubteam do - it always returns the
+# highest-scoring attempt across n_reattempts+1 tries, so there's no rejection
+# to speak of. attempt is 0-indexed like the above; default of 1 means up to
+# 2 total attempts.
+N_ADVISOR_REATTEMPTS: int = 1
+
 
 # --------------------------------------------------------------------------- #
 # Filesystem

@@ -8,12 +8,16 @@ what's already done:
   stage 0 (`run_stage0_ranking`): rank every unused seed, write the full
     ordered list to a JSON checkpoint (`config.RANKING_CHECKPOINT_PATH`).
   stage 1 (`run_stage1`): read that checkpoint, take the next `n` seeds not
-    already present in the stage-1 checkpoint, run cafeteam -> advisor on
-    each, append one JSON line per seed (`config.STAGE1_CHECKPOINT_PATH`).
-  stage 1, advisor-only (`run_stage1_advisor_only`): re-run just advisor for
-    up to `n` existing entries with cafeteam.passed == True, using their
-    already-stored cafeteam output - no cafeteam re-attempt. Overwrites those
-    entries in place (rewrites the whole checkpoint) rather than appending.
+    already present in the stage-1 checkpoint, run cafeteam -> panelone
+    (advisor + internal/revtwo/bureaucrat) on each, append one JSON line per
+    seed (`config.STAGE1_CHECKPOINT_PATH`) - the stored "advisor" entry is
+    panelone's *best*-scoring attempt, with its reviews and total score, not
+    just a single advisor call.
+  stage 1, advisor-only (`run_stage1_advisor_only`): re-run just panelone -
+    not cafeteam - for up to `n` existing entries with cafeteam.passed ==
+    True, using their already-stored cafeteam output - no cafeteam
+    re-attempt. Overwrites those entries in place (rewrites the whole
+    checkpoint) rather than appending.
 
 Seed selection for stage 1 is driven purely by the stage-0 checkpoint file - a
 specific, reproducible ranking snapshot (ranking is sensitive to tunables like
@@ -26,7 +30,7 @@ naturally excludes it via the existing `unused_seed_nodes()` filter - it just
 isn't used to gate stage 1's own selection within a run.
 
 Later stages (pubteam pass 1, supervisor, pubteam pass 2, archive) aren't
-built yet; `run_stage1` stops after advisor.
+built yet; `run_stage1` stops after panelone.
 """
 from __future__ import annotations
 
@@ -81,6 +85,24 @@ def _already_processed(path: Path) -> set[str]:
     return {e["seed"] for e in _read_jsonl(path)}
 
 
+def _panel_entry(panel) -> dict:
+    """Serialize a panelone PanelResult's best attempt for the stage-1
+    checkpoint: the winning proposal, each reviewer's score + text, and the
+    total score - not the full all_attempts history."""
+    best = panel.best
+    return {
+        "proposal": best.proposal,
+        "grounded_constants": [p.name for p in best.grounded],
+        "reviews": {
+            "internal": {"score": best.internal_score, "text": best.internal_text},
+            "revtwo": {"score": best.revtwo_score, "text": best.revtwo_text},
+            "bureaucrat": {"score": best.bureaucrat_score, "text": best.bureaucrat_text},
+        },
+        "total_score": best.total_score,
+        "attempts": panel.attempts,
+    }
+
+
 def run_stage1(web: KnowledgeWeb, n: int, *,
               ranking_path: Path = RANKING_CHECKPOINT_PATH,
               checkpoint_path: Path = STAGE1_CHECKPOINT_PATH,
@@ -122,16 +144,10 @@ def run_stage1(web: KnowledgeWeb, n: int, *,
         }
 
         if cafe.passed:
-            advisor_out = agents.advisor.agent({
-                "maniac": cafe.analogy,
-                "interpreter": cafe.novelty_text,
-                "sceptic": cafe.credibility_text,
-            }, run=run)
-            grounded = list(advisor_out.meta.get("grounded", []))
-            entry["advisor"] = {
-                "proposal": advisor_out.text,
-                "grounded_constants": [p.name for p in grounded],
-            }
+            panel = agents.panelone.run_panelone(
+                cafe.analogy, cafe.novelty_text, cafe.credibility_text,
+                run=run, verbosity=verbosity)
+            entry["advisor"] = _panel_entry(panel)
 
         with checkpoint_path.open("a") as fh:
             fh.write(json.dumps(entry) + "\n")
@@ -171,16 +187,10 @@ def run_stage1_advisor_only(n: int, *,
         entry = entries[i]
         cafe = entry["cafeteam"]
         run = Run(seed_node=entry["seed"])
-        advisor_out = agents.advisor.agent({
-            "maniac": cafe["analogy"],
-            "interpreter": cafe["novelty_text"],
-            "sceptic": cafe["credibility_text"],
-        }, run=run)
-        grounded = list(advisor_out.meta.get("grounded", []))
-        entry["advisor"] = {
-            "proposal": advisor_out.text,
-            "grounded_constants": [p.name for p in grounded],
-        }
+        panel = agents.panelone.run_panelone(
+            cafe["analogy"], cafe["novelty_text"], cafe["credibility_text"],
+            run=run, verbosity=verbosity)
+        entry["advisor"] = _panel_entry(panel)
         entry["run_label"] = run.label
         updated.append(entry)
 

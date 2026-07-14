@@ -86,28 +86,27 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
         _archive(web, res, run, verbosity=verbosity)
         return _finish(res, run)
 
-    # 3. advisor -> closed problem
-    _announce("advisor", verbosity)
-    advisor_out = agents.advisor.agent({
-        "maniac": cafe.analogy,
-        "interpreter": cafe.novelty_text,
-        "sceptic": cafe.credibility_text,
-    }, run=run)
-    res.closed_proposal = advisor_out.text
-    grounded = list(advisor_out.meta.get("grounded", []))
-    res.grounded_constants = [p.name for p in grounded]
+    # 3. panelone: advisor -> internal + revtwo + bureaucrat, re-attempting
+    # internally, keeping whichever attempt scores highest (no reject/accept)
+    _announce("panelone (advisor, internal, revtwo, bureaucrat)", verbosity)
+    panel = agents.panelone.run_panelone(
+        cafe.analogy, cafe.novelty_text, cafe.credibility_text,
+        run=run, verbosity=verbosity)
+    advisor_text = panel.best.proposal
+    res.closed_proposal = advisor_text
+    res.grounded_constants = [p.name for p in panel.best.grounded]
 
     # 4. pubteam pass 1 (closed) - reviewers see the grounded reference values
     _announce("pubteam pass 1 (leangrad, peer, critic)", verbosity)
     pass1 = agents.pubteam.run_pubteam(
-        advisor_out.text, run=run, iteration=0,
-        references=data_tool.format_references(grounded))
+        advisor_text, run=run, iteration=0,
+        references=data_tool.format_references(panel.best.grounded))
     res.pub1_passed = pass1.passed
     if not pass1.passed:
         res.notes.append(f"Pubteam pass 1 (closed problem) failed after "
                          f"{pass1.attempts} attempt(s).")
         res.strength = classify_strength(True, False, None)
-        _archive(web, res, run, problem=advisor_out.text, verbosity=verbosity)
+        _archive(web, res, run, problem=advisor_text, verbosity=verbosity)
         return _finish(res, run)
 
     # 5. supervisor -> open problem (only reached when iter == 0)
@@ -132,7 +131,7 @@ def discover(web: KnowledgeWeb, seed_node: str, run: Run | None = None,
                          f"{pass2.attempts} attempt(s); closed result stands.")
 
     res.strength = classify_strength(True, True, pass2.passed)
-    _archive(web, res, run, problem=supervisor_out.text or advisor_out.text,
+    _archive(web, res, run, problem=supervisor_out.text or advisor_text,
             verbosity=verbosity)
     return _finish(res, run)
 
