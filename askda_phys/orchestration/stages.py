@@ -10,6 +10,10 @@ what's already done:
   stage 1 (`run_stage1`): read that checkpoint, take the next `n` seeds not
     already present in the stage-1 checkpoint, run cafeteam -> advisor on
     each, append one JSON line per seed (`config.STAGE1_CHECKPOINT_PATH`).
+  stage 1, advisor-only (`run_stage1_advisor_only`): re-run just advisor for
+    up to `n` existing entries with cafeteam.passed == True, using their
+    already-stored cafeteam output - no cafeteam re-attempt. Overwrites those
+    entries in place (rewrites the whole checkpoint) rather than appending.
 
 Seed selection for stage 1 is driven purely by the stage-0 checkpoint file - a
 specific, reproducible ranking snapshot (ranking is sensitive to tunables like
@@ -57,15 +61,24 @@ def _load_ranking(path: Path) -> list[dict]:
     return json.loads(path.read_text())
 
 
-def _already_processed(path: Path) -> set[str]:
+def _read_jsonl(path: Path) -> list[dict]:
     if not path.exists():
-        return set()
-    seeds = set()
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if line:
-            seeds.add(json.loads(line)["seed"])
-    return seeds
+        return []
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def _write_jsonl(path: Path, entries: list[dict]) -> None:
+    """Rewrite the whole file (unlike the normal stage-1 append) - write to a
+    temp file and atomically replace, so a crash mid-write can't leave a
+    truncated/corrupted checkpoint."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text("".join(json.dumps(e) + "\n" for e in entries))
+    tmp.replace(path)
+
+
+def _already_processed(path: Path) -> set[str]:
+    return {e["seed"] for e in _read_jsonl(path)}
 
 
 def run_stage1(web: KnowledgeWeb, n: int, *,
@@ -131,3 +144,48 @@ def run_stage1(web: KnowledgeWeb, n: int, *,
                       f"attempts={cafe.attempts}) advisor={advisor_status}")
 
     return results
+
+
+def run_stage1_advisor_only(n: int, *,
+                            checkpoint_path: Path = STAGE1_CHECKPOINT_PATH,
+                            verbosity: int = 0) -> list[dict]:
+    """Re-run just advisor - not cafeteam - for up to `n` entries in the
+    stage-1 checkpoint that already have `cafeteam.passed == True`, using
+    their already-stored cafeteam output (analogy/novelty/credibility text).
+    No cafeteam re-attempt, so no new tokens spent on maniac/interpreter/
+    sceptic, and no risk of cafeteam's stochastic output changing underneath
+    you. Useful after changing advisor's prompt/logic and wanting to
+    regenerate proposals without re-rolling the idea itself.
+
+    Unlike `run_stage1`, this overwrites existing entries rather than adding
+    new ones, so it rewrites the whole checkpoint file (see `_write_jsonl`)
+    instead of appending. Doesn't touch `web` at all - no new seeding, no
+    description backfill (already done when the entry was first created).
+    """
+    entries = _read_jsonl(checkpoint_path)
+    eligible = [i for i, e in enumerate(entries) if e["cafeteam"]["passed"]][:n]
+
+    updated = []
+    for i in tqdm(eligible, desc="stage1 advisor-only", unit="seed",
+                 disable=verbosity < 1):
+        entry = entries[i]
+        cafe = entry["cafeteam"]
+        run = Run(seed_node=entry["seed"])
+        advisor_out = agents.advisor.agent({
+            "maniac": cafe["analogy"],
+            "interpreter": cafe["novelty_text"],
+            "sceptic": cafe["credibility_text"],
+        }, run=run)
+        grounded = list(advisor_out.meta.get("grounded", []))
+        entry["advisor"] = {
+            "proposal": advisor_out.text,
+            "grounded_constants": [p.name for p in grounded],
+        }
+        entry["run_label"] = run.label
+        updated.append(entry)
+
+        if verbosity >= 2:
+            tqdm.write(f"[{entry['seed']}] advisor re-run -> {run.label}")
+
+    _write_jsonl(checkpoint_path, entries)
+    return updated

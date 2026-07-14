@@ -10,11 +10,12 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "networkx>=3.0",
-    "anthropic>=0.40",        # default backend for all three tiers
-    "scipy>=1.11",            # CODATA grounding + leangrad numerical fallback
+    "anthropic>=0.40",          # default backend for all three tiers
+    "scipy>=1.11",              # CODATA grounding + leangrad numerical fallback
     "numpy>=1.24",
     "ddgs>=9.0.0",              # Used by web search tool (renamed from duckduckgo-search)
     "tqdm>=4.66",               # CLI progress bars
+    "paper-qa>=5",              # Used to perform literature searches.  
 ]
 
 [project.optional-dependencies]

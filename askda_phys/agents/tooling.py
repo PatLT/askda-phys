@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from typing import Callable
 
-from ..tools import physlib, pyexec, reader, search
+from ..tools import paperqa, physlib, pyexec, reader, search
 
 MAX_TOOL_TURNS = 3
 _MAX_OBSERVATION_CHARS = 4000
@@ -61,11 +61,17 @@ def _pyexec(code: str) -> str:
            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
 
 
+@_safe
+def _paperqa(question: str) -> str:
+    return paperqa.literature_review(question)
+
+
 EXECUTORS: dict[str, Callable[[str], str]] = {
     "reader": _read,
     "web_search": _search,
     "physlib": _physlib,
     "pyexec": _pyexec,
+    "paperqa": _paperqa,
 }
 
 _ARG_HINTS = {
@@ -73,6 +79,7 @@ _ARG_HINTS = {
     "web_search": "a search query",
     "physlib": "Lean 4 (Physlib) source to verify",
     "pyexec": "Python source to run (stdout/stderr are returned)",
+    "paperqa": "a natural-language research question - returns a citation-backed literature review",
 }
 
 

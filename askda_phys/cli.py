@@ -5,6 +5,7 @@
     python -m askda_phys.cli link-semantic    # add lexical SEMANTIC edges
     python -m askda_phys.cli rank             # rank seeds, persist full checkpoint
     python -m askda_phys.cli stage1 --n 10    # cafeteam -> advisor on the next 10 seeds
+    python -m askda_phys.cli stage1 --n 10 --advisor-only  # re-run advisor only, on existing ACCEPTs
     python -m askda_phys.cli run [--seed ID]  # run one discovery pass (unstaged)
     python -m askda_phys.cli run --mock       # run offline with the mock model
 
@@ -20,7 +21,7 @@ from .agents.memeticist import ALL_ROLES, EXPANDABLE_ROLES
 from .config import RANKING_CHECKPOINT_PATH, STAGE1_CHECKPOINT_PATH, WEB_PATH
 from .knowledge import KnowledgeWeb, add_semantic_links, build_initial_web, trawl_web
 from .knowledge.ranking import best_seed
-from .orchestration import discover, run_stage0_ranking, run_stage1
+from .orchestration import discover, run_stage0_ranking, run_stage1, run_stage1_advisor_only
 
 
 def _verbosity(args) -> int:
@@ -115,6 +116,14 @@ def cmd_stage1(args) -> None:
     verbosity = _verbosity(args)
     if args.mock:
         models.use_mock()
+
+    if args.advisor_only:
+        results = run_stage1_advisor_only(args.n, verbosity=verbosity)
+        if verbosity >= 1:
+            print(f"stage1 (advisor-only): re-ran advisor for {len(results)} "
+                  f"seed(s) -> {STAGE1_CHECKPOINT_PATH}")
+        return
+
     web = _load_web()
     results = run_stage1(web, args.n, verbosity=verbosity)
     if verbosity >= 1:
@@ -175,8 +184,15 @@ def main(argv=None) -> None:
 
     s1 = sub.add_parser("stage1", parents=[common])
     s1.add_argument("--n", type=int, default=10,
-                    help="number of not-yet-processed seeds to run through "
-                         "cafeteam -> advisor this call")
+                    help="number of seeds to process this call - fresh "
+                         "not-yet-processed seeds normally, or (with "
+                         "--advisor-only) existing cafeteam.passed=true "
+                         "entries to re-run advisor for")
+    s1.add_argument("--advisor-only", action="store_true",
+                    help="don't pull new seeds or re-run cafeteam; re-run "
+                         "just advisor for up to --n existing checkpoint "
+                         "entries with cafeteam.passed=true, using their "
+                         "already-stored cafeteam output")
     s1.set_defaults(func=cmd_stage1)
 
     rn = sub.add_parser("run", parents=[common])
