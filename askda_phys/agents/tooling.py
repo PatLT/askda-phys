@@ -22,6 +22,11 @@ MAX_TOOL_TURNS = 3
 _MAX_OBSERVATION_CHARS = 4000
 
 _TOOL_CALL_RE = re.compile(r"^TOOL:\s*(\w+)\s*(.*)", re.DOTALL)
+# A model that fabricates a whole fake tool-dialogue (multiple TOOL: lines,
+# invented Observation: text) in one completion must not have all of that
+# swallowed as a single giant argument - bound the capture at the next
+# TOOL:-prefixed line, if any.
+_NEXT_CALL_RE = re.compile(r"\n\s*TOOL:\s*\w+")
 
 
 def _safe(fn: Callable[[str], str]) -> Callable[[str], str]:
@@ -90,15 +95,21 @@ def run_tool(name: str, arg: str) -> str:
     return executor(arg)
 
 
-def parse_tool_call(text: str, allowed: tuple[str, ...]) -> tuple[str, str] | None:
-    """Detect a `TOOL: <name>\\n<argument>` response. None if not a (permitted) call."""
+def parse_tool_call(text: str, allowed: tuple[str, ...]) -> tuple[str, str, bool] | None:
+    """Detect a `TOOL: <name>\\n<argument>` response. None if not a (permitted)
+    call. The argument is truncated at the next `TOOL:`-prefixed line, if the
+    model wrote one - the third element of the return tuple is True when that
+    truncation happened, so the caller can tell the model it misbehaved."""
     m = _TOOL_CALL_RE.match(text.strip())
     if not m:
         return None
-    name, arg = m.group(1), m.group(2).strip()
+    name, rest = m.group(1), m.group(2)
+    boundary = _NEXT_CALL_RE.search(rest)
+    truncated = boundary is not None
+    arg = (rest[:boundary.start()] if truncated else rest).strip()
     if name not in allowed or name not in EXECUTORS:
         return None
-    return name, arg
+    return name, arg, truncated
 
 
 def protocol_hint(tool_names: tuple[str, ...]) -> str:
@@ -110,7 +121,12 @@ def protocol_hint(tool_names: tuple[str, ...]) -> str:
     return (
         "To use a tool, respond with ONLY:\nTOOL: <name>\n<argument>\n\n"
         "Available tools:\n" + "\n".join(lines) + "\n\n"
-        f"You get up to {MAX_TOOL_TURNS} tool calls. After each observation, either "
-        "call another tool the same way or give your final answer in the required "
-        "output format (a response that does not start with `TOOL:`)."
+        f"You get up to {MAX_TOOL_TURNS} tool calls. Call EXACTLY ONE tool per "
+        "response, then stop and wait: do not write more than one `TOOL:` line "
+        "in a single response, and do not write your own `Observation:` or "
+        "otherwise invent what the tool might return - the real observation "
+        "will be given back to you before you continue. After each real "
+        "observation, either call another tool the same way or give your "
+        "final answer in the required output format (a response that does "
+        "not start with `TOOL:`)."
     )

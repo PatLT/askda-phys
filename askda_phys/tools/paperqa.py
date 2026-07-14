@@ -19,16 +19,56 @@ backend for the rest of the system.
 paper-qa has no offline/mock mode - it does real web search and paper
 download - so this tool refuses to run under the mock backend rather than
 pretending to.
+
+paper-qa (and litellm underneath it) are very chatty - progress output plus a
+lot of logging, including citation/metadata-lookup warnings from resolving
+references against Crossref, which are mostly benign noise from its own
+internal search machinery rather than a sign anything we sent it is wrong.
+`literature_review` redirects all of that to `config.PAPERQA_LOG_PATH`
+(append mode) at the OS file-descriptor level rather than just reassigning
+`sys.stdout`/`sys.stderr` - some of that logging is bound to the *original*
+stderr object before we ever get a chance to redirect it, so a plain
+`contextlib.redirect_stdout` wouldn't reliably catch it.
 """
 from __future__ import annotations
 
+import contextlib
+import os
+import sys
 from typing import TYPE_CHECKING
 
-from ..config import TIERS
+from ..config import PAPERQA_LOG_PATH, TIERS
 
 if TYPE_CHECKING:  # type-only: the real imports are deferred below (heavy - litellm etc.)
     from paperqa import Settings
     from paperqa.agents.models import AnswerResponse
+
+
+@contextlib.contextmanager
+def _redirect_fds_to_file(path):
+    """Redirect OS-level stdout/stderr (fd 1/2) to `path` for the block,
+    restoring them afterward. Catches output from anything writing to those
+    file descriptors directly - print(), logging handlers configured before
+    this call, subprocess output - not just code that looks up
+    sys.stdout/sys.stderr fresh each time.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    saved_out_fd = os.dup(1)
+    saved_err_fd = os.dup(2)
+    with open(path, "a") as f:
+        os.dup2(f.fileno(), 1)
+        os.dup2(f.fileno(), 2)
+        try:
+            yield
+        finally:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os.dup2(saved_out_fd, 1)
+            os.dup2(saved_err_fd, 2)
+            os.close(saved_out_fd)
+            os.close(saved_err_fd)
 
 EMBEDDING_MODEL = "ollama/nomic-embed-text"
 
@@ -78,7 +118,8 @@ def literature_review(question: str, *, tier: str = "SMART") -> str:
     from paperqa.agents.models import AnswerResponse
 
     settings = _settings(tier)
-    response = ask(question, settings=settings)
+    with _redirect_fds_to_file(PAPERQA_LOG_PATH):
+        response = ask(question, settings=settings)
     # ask() is typed to return AnswerResponse | asyncio.Task[AnswerResponse] -
     # a Task only if called from inside a running event loop. This codebase is
     # fully synchronous, so it's always the resolved AnswerResponse; assert

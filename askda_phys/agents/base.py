@@ -83,12 +83,20 @@ class Agent:
             call = parse_tool_call(text, self.spec.tools) if self.spec.tool_loop else None
             if call is None or i == turns:
                 break
-            name, arg = call
+            name, arg, truncated = call
             observation = run_tool(name, arg)
             tool_calls.append({"tool": name, "arg": arg, "observation": observation})
+            correction = (
+                "Note: your response contained more than one `TOOL:` line; only "
+                "the first was executed and the rest was discarded. Call exactly "
+                "one tool per response and wait for its real observation before "
+                "calling another - do not write your own Observation text.\n\n"
+                if truncated else ""
+            )
             transcript += (
                 f"\n\n[Your tool call]\nTOOL: {name}\n{arg}\n\n"
                 f"[Observation]\n{observation}\n\n"
+                f"{correction}"
                 "Continue: call another tool the same way, or give your final "
                 "answer in the required output format now (do not start with TOOL:)."
             )

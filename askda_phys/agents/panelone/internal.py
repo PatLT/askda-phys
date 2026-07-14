@@ -29,16 +29,20 @@ SPEC = AgentSpec(
     ),
     objective=(
         "Take the attached research proposal, as well as the initial blue-sky idea "
-        "that originated it, and assess the alignment between the proposal and the "
-        "original idea.\n\n"
+        "that originated it, and the novelty statement (including a score from 1-5), "
+        "and assess the alignment between the proposal and the original idea. "
+        "Include an assessment of the degree to which the novelty of the idea has "
+        "been preserved or even extended.\n\n"
         "Return a single short paragraph assessment. At the very end, return a "
         "numeric score formatted exactly as `SCORE=value`, where value is 1 "
         "(proposal significantly strays from key insights of the original idea) "
-        "to 4 (key insights of the original idea are core to the research proposal)."
+        "to 4 (key insights of the original idea are core to the research proposal, "
+        "and the resulting proposal is highly novel)."
     ),
     context_template=(
         "Research proposal to review:\n{proposal}\n\n"
-        "Your colleague's initial idea:\n{maniac}"
+        "Your colleague's initial idea:\n{maniac}\n\n"
+        "A statement on the novelty of the idea:\n{interpreter}"
     ),
     tool_guidance="",
     reports_score=True,

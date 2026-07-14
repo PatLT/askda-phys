@@ -87,6 +87,11 @@ RUNS_DIR: Path = DATA_ROOT / "runs"
 WEB_PATH: Path = DATA_ROOT / "web.json"
 MEME_DESC_DIR: Path = DATA_ROOT / "meme_descriptions"
 
+# paper-qa is very chatty (progress bars, per-chunk retrieval/citation-lookup
+# logging) - tools/paperqa.py redirects all of it here (append mode) instead
+# of the console. `tail -f .askda/paperqa.log` to watch it live.
+PAPERQA_LOG_PATH: Path = DATA_ROOT / "paperqa.log"
+
 # Staged-pipeline checkpoints (see orchestration/stages.py). ranking.json is a
 # full snapshot, overwritten each stage-0 run; stage1.jsonl is an append-only
 # log, one line per seed processed, so a batch can be resumed across sessions.
