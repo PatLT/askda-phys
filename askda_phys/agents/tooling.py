@@ -79,11 +79,11 @@ def _pyexec(code: str) -> str:
 
 
 @_safe
-def _paperqa(question: str) -> str:
+def _paperqa(question: str) -> tuple[str, list[str]]:
     return paperqa.literature_review(question)
 
 
-EXECUTORS: dict[str, Callable[[str], str]] = {
+EXECUTORS: dict[str, Callable[[str], tuple[str, list[str]]]] = {
     "reader": _read,
     "web_search": _search,
     "physlib": _physlib,
@@ -100,10 +100,10 @@ _ARG_HINTS = {
 }
 
 
-def run_tool(name: str, arg: str) -> str:
+def run_tool(name: str, arg: str) -> tuple[str, list[str]]:
     executor = EXECUTORS.get(name)
     if executor is None:
-        return f"[unknown tool {name!r}]"
+        return f"[unknown tool {name!r}]", []
     return executor(arg)
 
 

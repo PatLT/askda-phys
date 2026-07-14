@@ -1,6 +1,8 @@
 """Literature review tool: ask a natural-language research question and get
-back a citation-backed literature review, via paper-qa's own web-search ->
-download -> retrieve -> synthesize agent.
+back a citation-backed literature review. paper-qa's own agent only
+searches/retrieves/synthesizes over a local paper directory - it has no web
+download step of its own - so this module fetches real candidate papers from
+arXiv (tools/paperfetch.py) before handing off to paper-qa.
 
 Configured to reuse whichever backend/tier is currently active for the rest
 of askda_phys (see config.TIERS) for all three of paper-qa's LLM roles - the
@@ -23,9 +25,19 @@ pretending to.
 paper-qa's local paper_directory defaults to Path.cwd() when unset, which
 would otherwise mean every call recursively indexes this whole repo -
 including our own .askda/runs/*.txt agent transcripts - as if it were a
-paper corpus, alongside whatever it fetches from the web. `_settings` pins
-it to config.PAPERQA_PAPER_DIR (a dedicated, otherwise-empty directory)
-instead, so only papers paper-qa itself downloaded are ever indexed.
+paper corpus. `_settings` pins it to config.PAPERQA_PAPER_DIR instead. But
+paper-qa itself never downloads anything into that directory - it only ever
+searches whatever's already there - so `literature_review` calls
+`tools.paperfetch.fetch_papers` first to actually populate it from arXiv.
+
+`literature_review` returns `(answer_text, citations)`: `citations` is a
+plain list of bibliographic strings for only the papers paper-qa's own
+`session.used_contexts` says were actually cited in the answer, read off
+`DocDetails.citation` for each cited context - not asked of the LLM, so it
+can be trusted and concatenated directly into a report rather than relying
+on the model to reproduce it faithfully (see agents/tooling.py's `_paperqa`,
+which threads this through `AgentResult.meta["citations"]` rather than the
+observation text the model sees).
 
 paper-qa (and litellm underneath it) are very chatty - progress output plus a
 lot of logging, including citation/metadata-lookup warnings from resolving
@@ -119,19 +131,31 @@ def _settings(tier: str) -> Settings:
     )
 
 
-def literature_review(question: str, *, tier: str = "SMART") -> str:
-    """Ask a natural-language research question; paper-qa searches the web
-    for relevant papers, downloads and retrieves relevant passages, and
-    synthesizes a citation-backed answer.
+def literature_review(question: str, *, tier: str = "SMART") -> tuple[str, list[str]]:
+    """Ask a natural-language research question; fetches real candidate
+    papers from arXiv into PAPERQA_PAPER_DIR, then lets paper-qa's own agent
+    search that local corpus, retrieve relevant passages, and synthesize a
+    citation-backed answer.
 
-    Returns the formatted answer (prose + references) as a single string, or
-    a clearly-flagged partial result if paper-qa didn't reach a confident
-    answer (rather than silently returning a weak answer as if it were solid).
+    Returns `(answer_text, citations)` - `answer_text` is the formatted
+    answer (prose + paper-qa's own inline references), or a clearly-flagged
+    partial result if paper-qa didn't reach a confident answer (rather than
+    silently returning a weak answer as if it were solid); `citations` is
+    the plain-string bibliography for only the papers actually cited,
+    suitable for direct (non-LLM) concatenation into a report - see the
+    module docstring.
     """
     from paperqa import ask  # deferred: heavy import (litellm etc.)
     from paperqa.agents.models import AnswerResponse
 
+    from . import paperfetch
+
     settings = _settings(tier)
+    try:
+        paperfetch.fetch_papers(question)
+    except Exception:
+        pass  # a fetch hiccup shouldn't block querying whatever's already local
+
     with _redirect_fds_to_file(PAPERQA_LOG_PATH):
         response = ask(question, settings=settings)
     # ask() is typed to return AnswerResponse | asyncio.Task[AnswerResponse] -
@@ -146,5 +170,7 @@ def literature_review(question: str, *, tier: str = "SMART") -> str:
 
     if not session.has_successful_answer:
         return (f"(literature review did not reach a confident answer - "
-                f"status={response.status.value})\n\n{session.formatted_answer}")
-    return session.formatted_answer
+                f"status={response.status.value})\n\n{session.formatted_answer}", [])
+    cited_ids = session.used_contexts
+    citations = sorted({c.text.doc.citation for c in session.contexts if c.id in cited_ids})
+    return session.formatted_answer, citations

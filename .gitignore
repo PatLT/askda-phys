@@ -1,5 +1,6 @@
 ## Project specific
-.askda/runs/*
+.askda/runs/**
+.askda/paperqa_papers/**
 
 ## Generic python .gitignore
 # Byte-compiled / optimized / DLL files

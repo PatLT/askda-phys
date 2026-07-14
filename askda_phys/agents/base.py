@@ -77,6 +77,7 @@ class Agent:
         system = self.system_prompt()
         turns = MAX_TOOL_TURNS if self.spec.tool_loop else 0
         tool_calls: list[dict] = []
+        citations: list[str] = []
         text = ""
         for i in range(turns + 1):
             text = models.call(self.spec.tier, transcript, system)
@@ -84,8 +85,9 @@ class Agent:
             if call is None or i == turns:
                 break
             name, arg, truncated = call
-            observation = run_tool(name, arg)
+            observation, obs_citations = run_tool(name, arg)
             tool_calls.append({"tool": name, "arg": arg, "observation": observation})
+            citations.extend(obs_citations)
             correction = (
                 "Note: your response contained more than one `TOOL:` line; only "
                 "the first was executed and the rest was discarded. Call exactly "
@@ -106,6 +108,8 @@ class Agent:
         result = AgentResult(agent=self.spec.name, text=text, score=score)
         if tool_calls:
             result.meta["tool_calls"] = tool_calls
+        if citations:
+            result.meta["citations"] = sorted(set(citations))
         return result
 
     # convenience

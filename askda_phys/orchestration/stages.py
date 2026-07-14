@@ -85,13 +85,25 @@ def _already_processed(path: Path) -> set[str]:
     return {e["seed"] for e in _read_jsonl(path)}
 
 
+def _format_citations(citations: list[str]) -> str:
+    """Direct string concatenation, not an LLM call - `report` must not rely
+    on the model to faithfully reproduce a bibliography it already has."""
+    if not citations:
+        return ""
+    return "\n\nReferences\n\n" + "\n".join(f"- {c}" for c in citations)
+
+
 def _panel_entry(panel) -> dict:
     """Serialize a panelone PanelResult's best attempt for the stage-1
     checkpoint: the winning proposal, each reviewer's score + text, and the
-    total score - not the full all_attempts history."""
+    total score - not the full all_attempts history. `proposal` is advisor's
+    raw text (what the reviewers actually scored); `report` is that plus the
+    cited-papers bibliography appended verbatim (see `_format_citations`)."""
     best = panel.best
     return {
         "proposal": best.proposal,
+        "citations": best.citations,
+        "report": best.proposal + _format_citations(best.citations),
         "grounded_constants": [p.name for p in best.grounded],
         "reviews": {
             "internal": {"score": best.internal_score, "text": best.internal_text},

@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 class PanelAttempt:
     proposal: str
     grounded: list["DataPoint"]  # full CODATA points - value/unit/uncertainty, not just names
+    citations: list[str]  # bibliography for papers actually cited (advisor's paperqa calls)
     internal_score: float | None
     internal_text: str
     revtwo_score: float | None
@@ -50,9 +51,11 @@ class PanelResult:
 
 
 def _feedback_block(rounds: list[str]) -> str:
-    """Concatenates all prior rounds' reviewer feedback onto advisor's
-    original context; empty on the first attempt, so its prompt is unchanged
-    from before this feature existed."""
+    """Concatenates all prior rounds' own proposal + reviewer feedback onto
+    advisor's original context, so a reattempt sees what it wrote last time
+    alongside the reviews of that specific version, not just the reviews in
+    isolation; empty on the first attempt, so its prompt is unchanged from
+    before this feature existed."""
     if not rounds:
         return ""
     joined = "\n\n".join(f"Round {i + 1} feedback:\n{fb}" for i, fb in enumerate(rounds))
@@ -83,6 +86,7 @@ def run_panelone(maniac: str, interpreter: str, sceptic: str,
             "feedback": _feedback_block(feedback_rounds),
         }, run=run, iteration=attempt)
         grounded = list(advisor_out.meta.get("grounded", []))
+        citations = list(advisor_out.meta.get("citations", []))
 
         review_context = {
             "proposal": advisor_out.text,
@@ -111,6 +115,7 @@ def run_panelone(maniac: str, interpreter: str, sceptic: str,
         current = PanelAttempt(
             proposal=advisor_out.text,
             grounded=grounded,
+            citations=citations,
             internal_score=i_out.score, internal_text=i_out.text,
             revtwo_score=r_out.score, revtwo_text=r_out.text,
             bureaucrat_score=b_out.score, bureaucrat_text=b_out.text,
@@ -125,6 +130,7 @@ def run_panelone(maniac: str, interpreter: str, sceptic: str,
 
         if attempt < total_attempts - 1:
             feedback_rounds.append(
+                f"Your proposal:\n{advisor_out.text}\n\n"
                 f"Internal review: {i_out.text}\n\n"
                 f"Second reviewer: {r_out.text}\n\n"
                 f"Bureaucratic review: {b_out.text}")
