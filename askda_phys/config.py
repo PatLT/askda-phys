@@ -100,6 +100,14 @@ PAPERQA_LOG_PATH: Path = DATA_ROOT / "paperqa.log"
 # indexes papers it has itself downloaded via web search.
 PAPERQA_PAPER_DIR: Path = DATA_ROOT / "paperqa_papers"
 
+# tools/paperfetch.py's cache is otherwise unbounded (it only ever adds
+# files); once it exceeds this many PDFs, the oldest-downloaded ones are
+# evicted. paper-qa's own index sync (sync_with_paper_directory, on by
+# default) then drops the matching entries from its own ~/.pqa/indexes
+# cache the next time it walks the directory, so capping this one directory
+# is enough to bound both.
+PAPERQA_PAPER_DIR_CAP: int = 100
+
 # Staged-pipeline checkpoints (see orchestration/stages.py). ranking.json is a
 # full snapshot, overwritten each stage-0 run; stage1.jsonl is an append-only
 # log, one line per seed processed, so a batch can be resumed across sessions.
